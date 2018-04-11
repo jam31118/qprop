@@ -1,4 +1,4 @@
 """init module for qprop package"""
 
-from .core import Qprop20
+#from .core import Qprop20
 
