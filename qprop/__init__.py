@@ -2,3 +2,6 @@
 
 #from .core import Qprop20
 
+from .default import default_config
+
+

@@ -4,7 +4,8 @@
 #### TODO ####
 ## [180409] Modulize this huge module into several smaller modules and leave core objects
 ## such as Qprop20 in this core.py module
-
+## [180414] Try not to use pandas since it is good to keep
+## the module to be lightweight.
 
 
 
@@ -53,6 +54,9 @@ from vis.plot import plot_1D
 #import unit
 from nunit import au as unit
 
+from .wavefunction import Wavefunction
+from .grid import Grid
+from .util import get_index_of_nearest_element
 
 ## Set default rcParams and update plt.rcParams
 #default_rcParams = {'xtick.labelsize':13,
@@ -63,29 +67,6 @@ from nunit import au as unit
 #                   }
 #plt.rcParams.update(default_rcParams)
 
-
-def get_index_of_nearest_element(array, value, threshold = 1e-3):
-    ## Check and pre-process input arguments
-    if type(array) is not np.ndarray:
-        try: array = np.array(array, dtype=float)
-        except: raise TypeError("The 'array' should be of type numpy.ndarray")
-    assert array.ndim == 1
-
-    #if value == 0: value = 1e-50
-    mask = np.abs(array - value) <= (threshold * abs(value))
-    indice = np.where(mask)[0]
-
-    # Check possible anomalies
-    if len(indice) < 1:
-        raise ValueError("no matching theta value")
-    if len(indice) is not 1:
-        raise ValueError("number of matched values should be one."
-            + "Consider modulating threshold.")
-
-    # Determine theta index
-    nearest_index = indice[0]
-
-    return nearest_index
 
 
 class parser:
@@ -473,87 +454,6 @@ class Qprop20(Qprop):
         return plot_1D(ell_indices, wf_sq_spectrum, xlabel=xlabel, ylabel=ylabel, **plot_kwargs)
 
 
-    # def readPolarSpectrumData(self, dataFileName=''):
-
-    #     ## Check data file name
-    #     if dataFileName == '':
-    #         # Check if this calculation uses tsurff
-    #         if 'tsurff.param' in self.paramFileList:
-    #             dataFileNameGuessed = os.path.join(self.home,'tsurff-polar.dat')
-    #         elif 'winop.param' in self.paramFileList:
-    #             dataFileNameGuessed = os.path.join(self.home, 'winop-polar.dat')
-    #         else:
-    #             raise Exception("Give an explicit dataFileName if you use custom data file name")
-    #         dataFileName = dataFileNameGuessed
-
-    #     ## Check whether the specified parameter file name exists
-    #     if not os.path.exists(dataFileName):
-    #         raise Exception("No file is found with name: %s" % dataFileName)
-
-    #     # Get qprop-dimension for convenience from now on (kind of alias)
-    #     qprop_dim = self.initialParam['qprop-dim']
-
-    #     ## Import and set column names of DataFrame
-    #     # Set column names
-    #     if qprop_dim == 34:
-    #         colNames = ['energy','k','theta_k','total_prob']
-    #     elif qprop_dim == 44:
-    #         colNames = ['energy','k','theta_k','phi_k','total_prob']
-    #     else:
-    #         raise ValueError("Input qprop-dim(=%d) is neither 34 nor 44." % (initialParam['qprop-dim']))
-
-    #     ## Import data
-    #     self.polarSpectrum = pd.read_table(dataFileName, sep='\s+', header=None, skip_blank_lines=True, dtype=np.double)
-
-    #     ## Check whether the number of imported columns and expected number of columns are same
-    #     num_dataCols = self.polarSpectrum.shape[1]
-    #     num_expectedCols = len(colNames)
-    #     if num_dataCols != num_expectedCols:
-    #         raise Exception("Input data isn't consistent with parameter files")
-
-    #     ## If the number of columns are consistent, assign list of column names to the DataFrame
-    #     self.polarSpectrum.columns = colNames
-
-
-    #     ## Check consistency with respect to the number of rows of DataFrame
-    #     if qprop_dim == 34:
-    #         expected_length = self.tsurffParam['num-k-surff'] * self.tsurffParam['num-theta-surff']
-    #     elif qprop_dim == 44:
-    #         expected_length = self.tsurffParam['num-k-surff'] * self.tsurffParam['num-theta-surff'] * self.tsurffParam['num-phi-surff']
-
-    #     if self.polarSpectrum.shape[0] != expected_length:
-    #         raise Exception("The imported data's number of rows isn't consistent with expected number of rows")
-
-
-    #     ## Sort the imported data according to the qprop dimension
-    #     if qprop_dim == 34:
-    #         sorting_criteria = ['k','theta_k']
-    #     elif qprop_dim == 44:
-    #         sorting_criteria = ['k','theta_k','phi_k']
-    #     else:
-    #         raise Exception("Input qprop-dim(=%d) is neither 34 nor 44." % (initialParam['qprop-dim']))
-    #     self.polarSpectrum.sort_values(sorting_criteria, inplace=True)
-
-
-    #     ## Setup 3D grid in spherical coordinate in case of qprop_dim == 44
-    #     if qprop_dim == 34:
-    #         self.kGridShape = (self.tsurffParam['num-k-surff'], self.tsurffParam['num-theta-surff'])
-    #         self.kGrid = self.polarSpectrum['k'].values.view().reshape(self.kGridShape)
-    #         self.kThetaGrid = self.polarSpectrum['theta_k'].values.view().reshape(self.kGridShape)
-    #         self.kProbGrid = self.polarSpectrum['total_prob'].values.view().reshape(self.kGridShape)
-    #     elif qprop_dim == 44:
-    #         self.kGridShape = (self.tsurffParam['num-k-surff'], self.tsurffParam['num-theta-surff'], self.tsurffParam['num-phi-surff'])
-    #         self.kGrid = self.polarSpectrum['k'].values.view().reshape(self.kGridShape)
-    #         self.kThetaGrid = self.polarSpectrum['theta_k'].values.view().reshape(self.kGridShape)
-    #         self.kPhiGrid = self.polarSpectrum['phi_k'].values.view().reshape(self.kGridShape)
-    #         self.kProbGrid = self.polarSpectrum['total_prob'].values.view().reshape(self.kGridShape)
-    #     else:
-    #         raise IOError("Input qprop-dim(=%d) neither 34 nor 44." % (initialParam['qprop-dim']))
-
-    #     ## Turn on the flag for indicating the completion of reading
-    #     self.haveReadPolarSpectrum = True
-
-
     def plotEnergySpectrum(self, ax=None, fig=None, logScale=True, x_unit='au', **kwargs):
 
         ## Check whether partial spectrum data has been read
@@ -583,7 +483,6 @@ class Qprop20(Qprop):
         if ax is None:
             ax = fig.gca()
 
-
         ## Prepare data
         # Set label and data according to unit
         if x_unit.lower() == 'au'.lower():
@@ -605,7 +504,6 @@ class Qprop20(Qprop):
 
         ## Return plotting objects
         return fig, ax
-
 
 
     def plotPartialSpectrums(self, saveFigure=False, saveFigureName='', logScale=False, maxNumOfPlotToDisplay=10, xlim=(None,None), ylim=(None,None)):
@@ -702,10 +600,8 @@ class Qprop20(Qprop):
             # Set default color map
             cmap = 'jet'
 
-
         # Update rcParams according to the 'rcParams' argument
         plt.rcParams.update(rcParams)
-
 
         ## Set figure object
         if fig == None:
@@ -714,13 +610,11 @@ class Qprop20(Qprop):
             # Check if 'fig' is of type 'matplotlib.figure.Figure'
             fig = fig
 
-
         ## Set projection mode
         if self.initialParam['qprop-dim'] == 34:
             projection = None
         else:
             raise IOError("Unsupported qprop_dimension for this method: %d\n" % (self.qprop_dim))
-
 
         ## Set Axes object
         if (type(subplot_index) != tuple):
@@ -735,7 +629,6 @@ class Qprop20(Qprop):
             # If no subplot_index is given, a new instance of axes object is generated
             ax = fig.gca(projection=projection)
 
-
         ## Plotting
         if inLogScale:
             # 1e-20 is added for preventing division by zero
@@ -745,12 +638,10 @@ class Qprop20(Qprop):
         else:
             pcm = ax.pcolormesh(X,Y,C, cmap=cmap, **kwargs)
 
-
         # Set colorbar
         cb = fig.colorbar(pcm, ax=ax, extend='min')
         cb.ax.get_yaxis().labelpad = 20
         cb.set_label('probability', rotation=270)
-
 
         # Set x,y limits
         plt.axis('square')
@@ -762,141 +653,12 @@ class Qprop20(Qprop):
         ax.set_xlabel('parellel momentum (a.u.)')
         ax.set_ylabel('perpendicular momentum (a.u.)')
 
-
         ## Save figure
         if saveFigureName != '':
             plt.savefig(saveFigureName)
 
-
         ## Return ax object in case of further manipulation
         return fig, ax, pcm, cb
-
-
-
-    # def plotPhotoElectronSpectraAtConstantTheta(self, theta = np.pi / 2 , saveFigureName='', threshold = 1e-8,
-    #     logScale=False, log_min=None, log_max=None, fig = None, ax = None, **kwargs):
-    #     """
-    #     Plot PhotoElectronSpectra with constant theta value
-    #     kwargs is passed to pcolormesh()
-    #     """
-
-    #     ## Check prerequisites
-    #     if not self.haveReadPolarSpectrum:
-    #         try:
-    #             self.readPolarSpectrumData()
-    #         except:
-    #             raise Exception("No data to plot. Please read polar spectrum data first")
-
-    #     ## Identify theta index corresponding input value 'theta'
-    #     # .. If 'theta' is similar enough with one of the existing theta values in data,
-    #     # .. closer than threshold, then that theta value is considered as intended theta
-    #     possibleThetaValues = self.polarSpectrum['theta_k'].unique()
-
-    #     theta_index = get_index_of_nearest_element(possibleThetaValues, theta, threshold)
-
-    #     # mask = abs(possibleThetaValues - theta) < threshold
-
-    #     # # Get index of corresponding theta value
-    #     # indice = np.where(mask)[0]
-    #     # # Check possible anomalies
-    #     # if len(indice) < 1:
-    #     #     raise ValueError("no matching theta value")
-    #     # if len(indice) is not 1:
-    #     #     raise ValueError("number of matched values in unique theta value array should be one")
-    #     # # Determine theta index
-    #     # theta_index = indice[0]
-
-
-    #     ## Construct data based on the extracted theta index
-    #     kGrid2D = self.kGrid[:,theta_index,:]
-    #     kPhiGrid2D = self.kPhiGrid[:,theta_index,:]
-    #     kProbGrid2D = self.kProbGrid[:,theta_index,:]
-    #     # Shape of 2D grid array, associated with the theta value
-    #     gridShape2D = kGrid2D.shape
-
-
-    #     ## Augmentation of grid array for pcolormesh() plotting
-    #     # Shape of augmented grid array
-    #     augmentedGridShape = (gridShape2D[0]+1, gridShape2D[1]+1)
-    #     # Augment Phi grid array
-    #     kPhiAug = np.empty(augmentedGridShape)
-    #     kPhiAug[slice(gridShape2D[0]),slice(gridShape2D[1])] = kPhiGrid2D
-    #     kPhiAug[-1,:] = kPhiAug[-2,:]
-    #     kPhiAug[:,-1] = 2*np.pi
-    #     # Augment k grid array
-    #     kAug = np.empty(augmentedGridShape)
-    #     kAug[1:augmentedGridShape[0], 1:augmentedGridShape[1]] = kGrid2D
-    #     kAug[0,:] = 0
-    #     kAug[1:,0] = kGrid2D[:,0]
-
-    #     #kAug[slice(gridShape2D[0]),slice(gridShape2D[1])] = kGrid2D
-    #     #kAug[:,-1] = kAug[:,-2]
-    #     #kAug[-1,:] = kAug[-2,:] + (self.tsurffParam['k-max-surff'] / self.tsurffParam['num-k-surff'])
-    #     #kAug[-1,:] = kAug[-2,:] + self.initialParam['delta-r']
-
-
-    #     ## Plot PhotoElectronSpectra using pcolormesh()
-    #     #cmap = 'hot'
-    #     cmap = 'jet'
-    #     figsize = (10,10)
-    #     if 'figsize' in kwargs.keys():
-    #         figsize = kwargs.pop('figsize')
-    #     if 'cmap' in kwargs.keys():
-    #         cmap = kwargs.pop('cmap')
-
-    #     # [NOTE 171211] Should be chanced
-    #     plt.rcParams['xtick.labelsize'] = 13
-    #     plt.rcParams['ytick.labelsize'] = 13
-    #     plt.rcParams['axes.labelsize'] = 20
-
-    #     if fig is None: fig = plt.figure(figsize=figsize)
-    #     #fig.clf()
-    #     #ax = fig.gca(projection='polar')
-    #     #mesh = ax.pcolormesh(kPhiAug, kAug, kProbGrid2D, cmap=cmap, **kwargs)
-    #     #ax.set_ylim(0,2)
-    #     if ax is None: ax = fig.gca()
-
-
-    #     # [NOTE 171102] TODO, let radius be determined automatically by referencing k-max-surff
-    #     radius = 2
-    #     #plt.axis('square')
-
-    #     ax.set_xlim(-radius, radius)
-    #     ax.set_ylim(-radius, radius)
-
-    #     if logScale:
-    #         C = kProbGrid2D.copy()
-    #         zero_prevention = 1e-50
-    #         C[C == 0] += zero_prevention
-    #         if log_min==None: log_min=C.min()
-    #         if log_max==None: log_max=C.max()
-    #         #print(log_min, log_max)
-    #         mesh = ax.pcolormesh(kAug*np.cos(kPhiAug), kAug*np.sin(kPhiAug), C,
-    #             cmap=cmap, norm=colors.LogNorm(vmin=log_min, vmax=log_max), **kwargs)
-
-    #     else:
-    #         mesh = ax.pcolormesh(kAug*np.cos(kPhiAug), kAug*np.sin(kPhiAug), kProbGrid2D,
-    #             cmap=cmap, **kwargs)
-
-    #     # Make it to be seen as equal tick spacing
-    #     ax.axis('square')
-
-    #     ## Set axis labels
-    #     ax.set_xlabel(r'$p_x$ (a.u.)')
-    #     ax.set_ylabel(r'$p_y$ (a.u.)')
-
-    #     ## Set colorbar
-    #     cb = fig.colorbar(mesh, ax=ax)
-    #     cb.ax.get_yaxis().labelpad = 20
-    #     cb.set_label('probability', rotation=270)
-
-    #     ## Save if specified
-    #     if saveFigureName != '':
-    #         plt.savefig(saveFigureName)
-
-    #     ## Return ax object in case of further manipulation
-    #     return ax, fig #, kAug, kPhiAug, kProbGrid2D
-
 
 
     ### Calaulting radial mean asymmetric coefficient (or parameter)
@@ -995,17 +757,6 @@ class Qprop20(Qprop):
     @staticmethod
     def has_raw_dat_etc(calc_home_path):
         return has_files_with_extensions(calc_home_path, [".raw", ".dat"])
-        # assert os.path.isdir(calc_home_path)
-        # home_contents = os.listdir(calc_home_path)
-        # extensions = [os.path.splitext(content)[1] for content in home_contents]
-        # required_extension_list = [".raw",".dat"]
-        # #print(extensions)
-        # has_all_required_ext = True
-        # for required_extension in required_extension_list:
-        #     has_this_required_ext = required_extension in extensions
-        #     has_all_required_ext &= has_this_required_ext
-        # return has_all_required_ext
-
 
     @classmethod
     def seems_to_be_a_calc_home(cls, calc_home_path):
@@ -2014,84 +1765,6 @@ class Qprop20_Grid2D(object):
 
 
 
-## Define Grid object
-class Grid(object):
-    def __init__(self, numOfRadialGrid=None, numOfEllGrid=None, numOfOrbitalGrid=None, dimension=None):
-        self.dimension = None
-        self.delta_r = None
-        self.initial_m = None
-        if (numOfRadialGrid != None): self.numOfRadialGrid = int(numOfRadialGrid)
-        if (numOfEllGrid != None): self.numOfEllGrid = int(numOfEllGrid)
-        if (numOfOrbitalGrid != None): self.numOfOrbitalGrid = int(numOfOrbitalGrid)
-        if (dimension != None): self.dimension = int(dimension)
-
-    def set_delta_r(self, delta_r):
-        self.delta_r = delta_r
-
-    def getArrayOfRadialValue(self):
-        max_radial_value = self.numOfRadialGrid * self.delta_r
-        return np.arange(0, max_radial_value, self.delta_r) + self.delta_r
-
-    def set_dimension(self, dimension):
-        self.dimension = int(dimension)
-
-    def sizeOf_ell_m_unified_grid(self):
-        if (self.dimension == 44):
-            return self.numOfEllGrid * self.numOfEllGrid
-        elif (self.dimension == 34):
-            return self.numOfEllGrid
-        else:
-            raise IOError("Unknown qprop dimension")
-
-    def printNumOfGridPoints(self):
-        print("numOfRadialGrid: ", self.numOfRadialGrid)
-        print("numOfEllGrid: ", self.numOfEllGrid)
-        print("numOfOrbitalGrid: ", self.numOfOrbitalGrid)
-
-    def set_initial_m(self, initial_m):
-        self.initial_m = initial_m
-
-    def calculate_listOf_l_m_tuples(self):
-        # Check Required variables
-        if ((self.dimension == 34) and (self.initial_m == None)): raise IOError("initial_m should be initialized before getting (l,m) tuples")
-        if (self.dimension == None): raise IOError("dimension should be initialized before getting (l,m) tuples")
-
-        # Construct the list of (l,m) tuples, depending on qprop dimension (self.dimension)
-        listOf_l_m_tuples = []
-        if (self.dimension == 44):
-            for l in range(self.numOfEllGrid):
-                for m in range(-l,l+1):
-                    listOf_l_m_tuples.append((l,m))
-        elif (self.dimension == 34):
-            for l in range(self.numOfEllGrid):
-                listOf_l_m_tuples.append((l,self.initial_m))
-        else: raise IOError("Unknown qprop dimension")
-
-        self.listOf_l_m_tuples = listOf_l_m_tuples
-
-        # Return the list of (l,m) tuples
-        return listOf_l_m_tuples
-
-    def get_l_m_iterator(self):
-        if self.dimension == 34:
-            assert self.initial_m is not None
-            return ((l,self.initial_m) for l in range(self.numOfEllGrid))
-        elif self.dimension == 44:
-            return ((l,m) for l in range(self.numOfEllGrid) for m in range(-l,l+1))
-
-    def size(self):
-        if (self.dimension == 44):
-            return self.numOfRadialGrid * self.numOfEllGrid * self.numOfEllGrid
-        elif (self.dimension == 34):
-            return self.numOfRadialGrid * self.numOfEllGrid * self.numOfOrbitalGrid
-        else:
-            raise IOError("Unknown qprop dimension")
-
-
-
-
-
-
 ## Wavefunction object
 
 """ Construct 'Wavefunction' object!
@@ -2112,216 +1785,218 @@ class Grid(object):
 ##- it has also, method for generating animation from the stack of wavefunctions
 """
 
-def construct_polar_mesh_for_colormesh(r_values, theta_values):
-    """
-    Returns polar mesh for matplotlib.pyplot.pcolormesh() in Cartesian coordinates
-    polar coordinates of data points -> polar mesh for colormesh
-    polar coordinates is assumed to be equidistance in the sense that
-    the r_values and theta_values are assumed to be equally-spaced.
-    """
+#def construct_polar_mesh_for_colormesh(r_values, theta_values):
+#    """
+#    Returns polar mesh for matplotlib.pyplot.pcolormesh() in Cartesian coordinates
+#    polar coordinates of data points -> polar mesh for colormesh
+#    polar coordinates is assumed to be equidistance in the sense that
+#    the r_values and theta_values are assumed to be equally-spaced.
+#    """
+#
+#    N_r = len(r_values)
+#    N_theta = len(theta_values)
+#
+#    delta_r = (r_values[-1] - r_values[0]) / (N_r - 1)
+#    delta_theta = (theta_values[-1] - theta_values[0]) / (N_theta - 1)
+#
+#    mesh_r_values = (np.arange(N_r + 1) - 0.5) * delta_r
+#    mesh_r_values[0] = 0
+#    mesh_theta_values = (np.arange(N_theta + 1) - 0.5) * delta_theta
+#
+#    mesh_R, mesh_Theta = np.meshgrid(mesh_r_values, mesh_theta_values, indexing='ij')
+#
+#    mesh_X = mesh_R * np.cos(mesh_Theta)
+#    mesh_Y = mesh_R * np.sin(mesh_Theta)
+#
+#    return mesh_X, mesh_Y
+#
 
-    N_r = len(r_values)
-    N_theta = len(theta_values)
-
-    delta_r = (r_values[-1] - r_values[0]) / (N_r - 1)
-    delta_theta = (theta_values[-1] - theta_values[0]) / (N_theta - 1)
-
-    mesh_r_values = (np.arange(N_r + 1) - 0.5) * delta_r
-    mesh_r_values[0] = 0
-    mesh_theta_values = (np.arange(N_theta + 1) - 0.5) * delta_theta
-
-    mesh_R, mesh_Theta = np.meshgrid(mesh_r_values, mesh_theta_values, indexing='ij')
-
-    mesh_X = mesh_R * np.cos(mesh_Theta)
-    mesh_Y = mesh_R * np.sin(mesh_Theta)
-
-    return mesh_X, mesh_Y
-
-
-from scipy.special import sph_harm
-
-class Wavefunction(object):
-    def __init__(self, grid):
-        ## Process input arguments
-        # Check type
-        if (type(grid) != Grid):
-            raise TypeError("Required 'Grid', not %s" % type(grid))
-        # Assign input argument(s) into member variable(s)
-        self.grid = grid
-
-        ## Construct 1D array with the size of given grid
-        self.data_raw = np.empty((grid.size(),2))  # second '2' is for real and imaginary part of complex wavefunction value
-
-        ## Initialize flags to be Flase
-        self.wavefucntion_have_been_loaded = False
-        #self.have_been_reconstructed_in_real_space = False
-
-        ## Initialize angle grid
-        # [NOTE 171204] It might be better to gather these kind of configuration variables into one object such as dictionary
-        # .. similar object can be rcParams of matplotlib.pyplot
-        self.grid.defaultNumOfThetaPoints = 9
-        self.grid.defaultNumOfPhiPoints = 50
-        self.grid.thetaValues = np.linspace(0, np.pi, self.grid.defaultNumOfThetaPoints)
-        self.grid.phiValues = np.linspace(0, 2*np.pi, self.grid.defaultNumOfPhiPoints)
-
-
-    def load(self, dataFileName, indexOfWavefuncInFile, binary=False):
-        numOfLineToRead = self.grid.size()
-        indexOfFirstLineToRead = int(indexOfWavefuncInFile * self.grid.size())
-        numOfLineBeforeLineToBeRead = indexOfFirstLineToRead
-        #self.data_raw = np.genfromtxt(dataFileName,
-        #                              skip_header = numOfLineBeforeLineToBeRead,
-        #                              max_rows = numOfLineToRead,
-        #                              delimiter = ' ')
-        if binary:
-            size_of_complex_number = 16
-            with open(dataFileName, 'rb') as f:
-                f.seek(size_of_complex_number * numOfLineBeforeLineToBeRead)
-                self.data = np.fromfile(f, dtype=complex, count=numOfLineToRead)
-        else:
-            self.data_raw[:] = pd.read_table(dataFileName, sep='\s+', header=None,
-                    skiprows=numOfLineBeforeLineToBeRead, nrows=numOfLineToRead, skip_blank_lines=True).values
-
-            if self.data_raw.shape != (numOfLineToRead, 2):
-                raise IOError("Data misread from %s" % (dataFileName))
-
-            # Convert two real-valud arrays to one complex-valued array
-            real_2_tuple_dimension_index = 1
-            self.data = np.apply_along_axis(lambda real_2_tuple: complex(*real_2_tuple), real_2_tuple_dimension_index, self.data_raw)
-
-        # Reshape original 1D array to 2D array
-        self.data_2d = self.data.view().reshape(self.grid.sizeOf_ell_m_unified_grid(), self.grid.numOfRadialGrid)
-
-        self.wavefucntion_have_been_loaded = True
-
-
-    def _generateSphericalHarmonicsOnGrid(self, arrayOfThetaValue, arrayOfPhiValue):
-        self.grid.thetaValues = arrayOfThetaValue
-        self.grid.phiValues = arrayOfPhiValue
-        gridOfTheta, gridOfPhi = np.meshgrid(self.grid.thetaValues, self.grid.phiValues)
-        self.grid.shapeOfSpheriHarmGrid = (self.grid.sizeOf_ell_m_unified_grid(), len(self.grid.phiValues), len(self.grid.thetaValues))
-
-        # 'm' corresponds to 'm' and 'n' corresponds to 'l' (orbital quantum number)
-        vectorized_spheriHarm = np.vectorize(sph_harm, excluded=['m','n'])
-
-        self.arrayOfSpheriHarm = np.empty(self.grid.shapeOfSpheriHarmGrid, dtype=complex)
-        for lm_tuple_idx, lm_tuple in enumerate(self.grid.calculate_listOf_l_m_tuples()):
-            l = lm_tuple[0]
-            m = lm_tuple[1]
-            self.arrayOfSpheriHarm[lm_tuple_idx,:,:] = vectorized_spheriHarm(m, l, gridOfPhi, gridOfTheta)
-
-    def reconstructInRealSpace(self, arrayOfThetaValue=[], arrayOfPhiValue=[]):
-
-        if len(arrayOfThetaValue) != 0:
-            self.grid.thetaValues = arrayOfThetaValue
-            #arrayOfThetaValue = np.linspace(0,np.pi,defaultNumOfThetaPoints)
-
-        if len(arrayOfPhiValue) != 0:
-            self.grid.phiValues = arrayOfPhiValue
-            #arrayOfPhiValue = np.linspace(0,2*np.pi,defaultNumOfPhiPoints)
-
-        #self._generateSphericalHarmonicsOnGrid(arrayOfThetaValue, arrayOfPhiValue)
-        self._generateSphericalHarmonicsOnGrid(self.grid.thetaValues, self.grid.phiValues)
-        # Summation on (l,m) indice
-        self.atRealspace = np.einsum(self.data_2d, [0,1], self.arrayOfSpheriHarm, [0,2,3])
-        radial_grid = self.grid.getArrayOfRadialValue()
-        for idx, r_val in enumerate(radial_grid):
-            self.atRealspace[idx,:,:] = self.atRealspace[idx,:,:] * 1.0 / r_val
-
-        #self.have_been_reconstructed_in_real_space = True
-
-    def plot_wf_cross_section_at_constant_theta(self, const_theta = np.pi / 2.0, arrayOfThetaValue=[], arrayOfPhiValue=[],
-            log_scale = True, vmin = None, vmax = None, fig = None, ax = None, fresh_reconstruction=True):
-
-        if not self.wavefucntion_have_been_loaded:
-            raise Exception("Wavefunction should be loaded first")
-
-        if fresh_reconstruction:
-            do_reconstruction = True
-
-        thetaValuesAreDifferent = False
-        if len(arrayOfThetaValue) != 0:
-            if len(self.grid.thetaValues) != len(arrayOfThetaValue):
-                thetaValuesAreDifferent = True
-            elif not (self.grid.thetaValues == arrayOfThetaValue).all():
-                thetaValuesAreDifferent = True
-        if thetaValuesAreDifferent:
-            self.grid.thetaValues = arrayOfThetaValue
-            do_reconstruction = True
-            #self.have_been_reconstructed_in_real_space = False
-
-        phiValuesAreDifferent = False
-        if len(arrayOfPhiValue) != 0:
-            if len(self.grid.phiValues) != len(arrayOfPhiValue):
-                phiValuesAreDifferent = True
-            elif not (self.grid.phiValues == arrayOfPhiValue).all():
-                phiValuesAreDifferent
-        if phiValuesAreDifferent:
-            self.grid.phiValues = arrayOfPhiValue
-            do_reconstruction = True
-            #self.have_been_reconstructed_in_real_space = False
-
-        #self.reconstructInRealSpace(self.grid.thetaValues, self.grid.phiValues)
-        #if not self.have_been_reconstructed_in_real_space:
-            #self.reconstructInRealSpace(arrayOfThetaValue, arrayOfPhiValue)
-        if do_reconstruction:
-            self.reconstructInRealSpace(arrayOfThetaValue, arrayOfPhiValue)
-
-        # [NOTE] The self.grid.phiValues and self.grid.thetaValues should be set in self.reconstructInRealSpace()
-        assert (len(self.grid.phiValues) != 0) and (len(self.grid.thetaValues) != 0)
-
-        r = self.grid.getArrayOfRadialValue()
-        phi = self.grid.phiValues
-
-        mesh_X, mesh_Y = construct_polar_mesh_for_colormesh(r, phi)
-
-        # R, Phi = np.meshgrid(r,phi,indexing='ij')
-
-        # ## Augmentation
-        # R_augmented = np.empty((R.shape[0]+1,R.shape[1]))
-        # R_augmented[0,:] = 0
-        # R_augmented[1:,:] = R
-
-        # Phi_augmented = np.empty((Phi.shape[0]+1, Phi.shape[1]))
-        # Phi_augmented[1:,:] = Phi
-        # Phi_augmented[0,:] = Phi[0,:]
-
-        ## Get wavefunction at constant theta
-        const_theta_index = get_index_of_nearest_element(self.grid.thetaValues, const_theta)
-        Z = np.absolute(self.atRealspace[:,:,const_theta_index])
-        Z = np.square(Z)
-
-        ## Determine Figure and Axes object
-        if fig is None:
-            fig = plt.figure(figsize=(10,10))
-        if ax is None:
-            #ax = fig.gca(projection='polar')
-            ax = fig.gca()
-
-        ## Prevent log(0) error by matplotlib.colors.LogNorm()
-        Z[Z==0] = 1e-50
-
-        if log_scale:
-            normalizer = colors.LogNorm(vmax=vmax, vmin=vmin)
-            #pcm = ax.pcolormesh(Phi_augmented, R_augmented, Z, norm=colors.LogNorm(vmax=vmax, vmin=vmin))
-        else:
-            #pcm = ax.pcolormesh(Phi_augmented, R_augmented, Z, norm=colors.Normalize(vmax=vmax, vmin=vmin))
-            normalizer = colors.Normalize(vmax=vmax, vmin=vmin)
-
-        pcm = ax.pcolormesh(mesh_X, mesh_Y, Z, norm=normalizer)
-
-        ax.axis('square')
-
-        radius = r.max()
-        ax.set_xlim(-radius, radius)
-        ax.set_ylim(-radius, radius)
-
-        ax.set_xlabel(r'x coordinate / Bohr Radius')
-        ax.set_ylabel(r'y coordinate / Bohr Radius')
-
-        cb = fig.colorbar(pcm, ax=ax, extend='min')
-
-        return fig, ax
+#from scipy.special import sph_harm
+#
+#from vis.plot import construct_polar_mesh_for_colormesh
+#
+#class Wavefunction(object):
+#    def __init__(self, grid):
+#        ## Process input arguments
+#        # Check type
+#        if (type(grid) != Grid):
+#            raise TypeError("Required 'Grid', not %s" % type(grid))
+#        # Assign input argument(s) into member variable(s)
+#        self.grid = grid
+#
+#        ## Construct 1D array with the size of given grid
+#        self.data_raw = np.empty((grid.size(),2))  # second '2' is for real and imaginary part of complex wavefunction value
+#
+#        ## Initialize flags to be Flase
+#        self.wavefucntion_have_been_loaded = False
+#        #self.have_been_reconstructed_in_real_space = False
+#
+#        ## Initialize angle grid
+#        # [NOTE 171204] It might be better to gather these kind of configuration variables into one object such as dictionary
+#        # .. similar object can be rcParams of matplotlib.pyplot
+#        self.grid.defaultNumOfThetaPoints = 9
+#        self.grid.defaultNumOfPhiPoints = 50
+#        self.grid.thetaValues = np.linspace(0, np.pi, self.grid.defaultNumOfThetaPoints)
+#        self.grid.phiValues = np.linspace(0, 2*np.pi, self.grid.defaultNumOfPhiPoints)
+#
+#
+#    def load(self, dataFileName, indexOfWavefuncInFile, binary=False):
+#        numOfLineToRead = self.grid.size()
+#        indexOfFirstLineToRead = int(indexOfWavefuncInFile * self.grid.size())
+#        numOfLineBeforeLineToBeRead = indexOfFirstLineToRead
+#        #self.data_raw = np.genfromtxt(dataFileName,
+#        #                              skip_header = numOfLineBeforeLineToBeRead,
+#        #                              max_rows = numOfLineToRead,
+#        #                              delimiter = ' ')
+#        if binary:
+#            size_of_complex_number = 16
+#            with open(dataFileName, 'rb') as f:
+#                f.seek(size_of_complex_number * numOfLineBeforeLineToBeRead)
+#                self.data = np.fromfile(f, dtype=complex, count=numOfLineToRead)
+#        else:
+#            self.data_raw[:] = pd.read_table(dataFileName, sep='\s+', header=None,
+#                    skiprows=numOfLineBeforeLineToBeRead, nrows=numOfLineToRead, skip_blank_lines=True).values
+#
+#            if self.data_raw.shape != (numOfLineToRead, 2):
+#                raise IOError("Data misread from %s" % (dataFileName))
+#
+#            # Convert two real-valud arrays to one complex-valued array
+#            real_2_tuple_dimension_index = 1
+#            self.data = np.apply_along_axis(lambda real_2_tuple: complex(*real_2_tuple), real_2_tuple_dimension_index, self.data_raw)
+#
+#        # Reshape original 1D array to 2D array
+#        self.data_2d = self.data.view().reshape(self.grid.sizeOf_ell_m_unified_grid(), self.grid.numOfRadialGrid)
+#
+#        self.wavefucntion_have_been_loaded = True
+#
+#
+#    def _generateSphericalHarmonicsOnGrid(self, arrayOfThetaValue, arrayOfPhiValue):
+#        self.grid.thetaValues = arrayOfThetaValue
+#        self.grid.phiValues = arrayOfPhiValue
+#        gridOfTheta, gridOfPhi = np.meshgrid(self.grid.thetaValues, self.grid.phiValues)
+#        self.grid.shapeOfSpheriHarmGrid = (self.grid.sizeOf_ell_m_unified_grid(), len(self.grid.phiValues), len(self.grid.thetaValues))
+#
+#        # 'm' corresponds to 'm' and 'n' corresponds to 'l' (orbital quantum number)
+#        vectorized_spheriHarm = np.vectorize(sph_harm, excluded=['m','n'])
+#
+#        self.arrayOfSpheriHarm = np.empty(self.grid.shapeOfSpheriHarmGrid, dtype=complex)
+#        for lm_tuple_idx, lm_tuple in enumerate(self.grid.calculate_listOf_l_m_tuples()):
+#            l = lm_tuple[0]
+#            m = lm_tuple[1]
+#            self.arrayOfSpheriHarm[lm_tuple_idx,:,:] = vectorized_spheriHarm(m, l, gridOfPhi, gridOfTheta)
+#
+#    def reconstructInRealSpace(self, arrayOfThetaValue=[], arrayOfPhiValue=[]):
+#
+#        if len(arrayOfThetaValue) != 0:
+#            self.grid.thetaValues = arrayOfThetaValue
+#            #arrayOfThetaValue = np.linspace(0,np.pi,defaultNumOfThetaPoints)
+#
+#        if len(arrayOfPhiValue) != 0:
+#            self.grid.phiValues = arrayOfPhiValue
+#            #arrayOfPhiValue = np.linspace(0,2*np.pi,defaultNumOfPhiPoints)
+#
+#        #self._generateSphericalHarmonicsOnGrid(arrayOfThetaValue, arrayOfPhiValue)
+#        self._generateSphericalHarmonicsOnGrid(self.grid.thetaValues, self.grid.phiValues)
+#        # Summation on (l,m) indice
+#        self.atRealspace = np.einsum(self.data_2d, [0,1], self.arrayOfSpheriHarm, [0,2,3])
+#        radial_grid = self.grid.getArrayOfRadialValue()
+#        for idx, r_val in enumerate(radial_grid):
+#            self.atRealspace[idx,:,:] = self.atRealspace[idx,:,:] * 1.0 / r_val
+#
+#        #self.have_been_reconstructed_in_real_space = True
+#
+#    def plot_wf_cross_section_at_constant_theta(self, const_theta = np.pi / 2.0, arrayOfThetaValue=[], arrayOfPhiValue=[],
+#            log_scale = True, vmin = None, vmax = None, fig = None, ax = None, fresh_reconstruction=True):
+#
+#        if not self.wavefucntion_have_been_loaded:
+#            raise Exception("Wavefunction should be loaded first")
+#
+#        if fresh_reconstruction:
+#            do_reconstruction = True
+#
+#        thetaValuesAreDifferent = False
+#        if len(arrayOfThetaValue) != 0:
+#            if len(self.grid.thetaValues) != len(arrayOfThetaValue):
+#                thetaValuesAreDifferent = True
+#            elif not (self.grid.thetaValues == arrayOfThetaValue).all():
+#                thetaValuesAreDifferent = True
+#        if thetaValuesAreDifferent:
+#            self.grid.thetaValues = arrayOfThetaValue
+#            do_reconstruction = True
+#            #self.have_been_reconstructed_in_real_space = False
+#
+#        phiValuesAreDifferent = False
+#        if len(arrayOfPhiValue) != 0:
+#            if len(self.grid.phiValues) != len(arrayOfPhiValue):
+#                phiValuesAreDifferent = True
+#            elif not (self.grid.phiValues == arrayOfPhiValue).all():
+#                phiValuesAreDifferent
+#        if phiValuesAreDifferent:
+#            self.grid.phiValues = arrayOfPhiValue
+#            do_reconstruction = True
+#            #self.have_been_reconstructed_in_real_space = False
+#
+#        #self.reconstructInRealSpace(self.grid.thetaValues, self.grid.phiValues)
+#        #if not self.have_been_reconstructed_in_real_space:
+#            #self.reconstructInRealSpace(arrayOfThetaValue, arrayOfPhiValue)
+#        if do_reconstruction:
+#            self.reconstructInRealSpace(arrayOfThetaValue, arrayOfPhiValue)
+#
+#        # [NOTE] The self.grid.phiValues and self.grid.thetaValues should be set in self.reconstructInRealSpace()
+#        assert (len(self.grid.phiValues) != 0) and (len(self.grid.thetaValues) != 0)
+#
+#        r = self.grid.getArrayOfRadialValue()
+#        phi = self.grid.phiValues
+#
+#        mesh_X, mesh_Y = construct_polar_mesh_for_colormesh(r, phi)
+#
+#        # R, Phi = np.meshgrid(r,phi,indexing='ij')
+#
+#        # ## Augmentation
+#        # R_augmented = np.empty((R.shape[0]+1,R.shape[1]))
+#        # R_augmented[0,:] = 0
+#        # R_augmented[1:,:] = R
+#
+#        # Phi_augmented = np.empty((Phi.shape[0]+1, Phi.shape[1]))
+#        # Phi_augmented[1:,:] = Phi
+#        # Phi_augmented[0,:] = Phi[0,:]
+#
+#        ## Get wavefunction at constant theta
+#        const_theta_index = get_index_of_nearest_element(self.grid.thetaValues, const_theta)
+#        Z = np.absolute(self.atRealspace[:,:,const_theta_index])
+#        Z = np.square(Z)
+#
+#        ## Determine Figure and Axes object
+#        if fig is None:
+#            fig = plt.figure(figsize=(10,10))
+#        if ax is None:
+#            #ax = fig.gca(projection='polar')
+#            ax = fig.gca()
+#
+#        ## Prevent log(0) error by matplotlib.colors.LogNorm()
+#        Z[Z==0] = 1e-50
+#
+#        if log_scale:
+#            normalizer = colors.LogNorm(vmax=vmax, vmin=vmin)
+#            #pcm = ax.pcolormesh(Phi_augmented, R_augmented, Z, norm=colors.LogNorm(vmax=vmax, vmin=vmin))
+#        else:
+#            #pcm = ax.pcolormesh(Phi_augmented, R_augmented, Z, norm=colors.Normalize(vmax=vmax, vmin=vmin))
+#            normalizer = colors.Normalize(vmax=vmax, vmin=vmin)
+#
+#        pcm = ax.pcolormesh(mesh_X, mesh_Y, Z, norm=normalizer)
+#
+#        ax.axis('square')
+#
+#        radius = r.max()
+#        ax.set_xlim(-radius, radius)
+#        ax.set_ylim(-radius, radius)
+#
+#        ax.set_xlabel(r'x coordinate / Bohr Radius')
+#        ax.set_ylabel(r'y coordinate / Bohr Radius')
+#
+#        cb = fig.colorbar(pcm, ax=ax, extend='min')
+#
+#        return fig, ax
 
 
 
