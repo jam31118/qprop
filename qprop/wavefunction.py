@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import sph_harm
 from matplotlib.colors import Normalize, LogNorm
+import pandas as pd
 
 from vis.plot import construct_polar_mesh_for_colormesh
 
