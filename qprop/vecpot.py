@@ -1,8 +1,142 @@
+from numbers import Real
+
 import numpy as np
+from numpy import pi
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
+class Vecpot(object):
+#    def __init__(start_time, end_time):
+#        self.start_time, self.end_time = start_time, end_time
+
+    def get_duration(): pass
+
+
+class Single_Vecpot(Vecpot):
+    def __init__(self, omega, num_cycles, E0, phase, 
+            start_time=0.0):
+
+        for arg in [omega, num_cycles, E0, phase, start_time]:
+            assert isinstance(arg, Real)
+        for positive_arg in [omega, num_cycles, E0, start_time]:
+            assert positive_arg >= 0
+        
+        ## Variables which should be initialized in __init__()
+        self.omega = omega
+        self.num_cycles = num_cycles
+        self.E0 = E0
+        self.phase = phase
+        self.start_time = start_time
+        self.duration = self.get_duration()
+        self.end_time = self.get_end_time()
+    
+    def get_duration(self):
+        return self.num_cycles * 2 * pi / self.omega
+    
+    def get_start_time(self):
+        return self.start_time
+        
+    def get_end_time(self):
+        return self.start_time + self.get_duration()
+
+
+class Superposed_Vecpot(Vecpot):
+    def __init__(self, vecpots):
+        assert len(vecpots) >= 1
+        for vecpot in vecpots: assert isinstance(vecpot, Vecpot)
+
+        self.vecpots = vecpots
+
+        self.start_time = self.get_start_time()
+        self.end_time = self.get_end_time()
+        assert self.start_time < self.end_time
+        
+        self.duration = self.get_duration()
+
+    def get_start_time(self):
+        min_start_time = min(
+                vp.get_start_time() for vp in self.vecpots)
+        assert min_start_time >= 0
+        return min_start_time
+
+    def get_end_time(self):
+        max_end_time = max(
+                vp.get_end_time() for vp in self.vecpots)
+        return max_end_time
+
+    def get_duration(self):
+        start_time = self.get_start_time()
+        end_time = self.get_end_time()
+        assert start_time < end_time
+        return start_time - end_time
+
+    @staticmethod
+    def from_parameters(para):
+        assert hasattr(para, '__getitem__')
+
+        if param_names_are_in_original_form(para):
+            pass
+
+
+class Param_to_Vecpot(object):
+    ## Legacy settings (for backward compatibility)
+    must_have_if_original = [
+            'omega', 'num-cycles', 'max-electric-field' ]
+    optional_if_original = ['phase-pi', 'start_time']
+    default_for_optional = {
+            'phase-pi':0.0, 'start_time':0.0}
+
+    ## Settings for new form
+    suffix_form = '-{0}-{1}'
+
+    def __init__(self, param):
+        assert hasattr(param, '__getitem__')
+        self.param = param
+
+#    @classmethod
+    def param_names_are_in_original_form(self):
+    
+        ## Check if para object has vector potential
+        ## .. parameters in original form.
+        param_name_is_in_original_form = True
+        for must_have_key in self.must_have_if_original:
+            have_key = must_have_key in self.param.keys()
+            param_name_is_in_original_form &= have_key
+        
+        return param_name_is_in_original_form
+    
+#    @classmethod
+    def param_to_single_vecpot(self):
+
+        assert self.param_names_are_in_original_form(self.param)
+
+        must_have_key_values = []
+        for key in self.must_have_if_original:
+            if key in self.param.keys():
+                must_have_key_values.append(self.param[key])
+            else:
+                err_mesg = "key {0} should be in param.keys() {1}"
+                raise KeyError(
+                    err_mesg.format(key, self.param.keys()))
+
+        optional_values = []
+        for opt_key in self.optional_if_original:
+            if opt_key in self.param.keys():
+                optional_values.append(self.param[opt_key])
+            else:
+                default = cls.default_for_optional[opt_key]
+                optional_values.append(default)
+        all_key_values = must_have_key_values + optional_values
+        
+        vp = None
+        try: vp = Single_Vecpot(*all_key_values)
+        except: 
+            raise Exception(
+                    "Failed to construct Single_Vecpot"
+                    + " from given param: {0}".format(self.param))
+        return vp
+    
 
 
 class Vecpot(object):

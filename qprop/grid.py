@@ -5,7 +5,9 @@ import numpy as np
 
 ## Define Grid object
 class Grid(object):
-    def __init__(self, numOfRadialGrid=None, numOfEllGrid=None, numOfOrbitalGrid=None, dimension=None):
+    def __init__(self, numOfRadialGrid=None, numOfEllGrid=None, numOfOrbitalGrid=None, 
+            dimension=None):
+
         self.dimension = None
         self.delta_r = None
         self.initial_m = None
@@ -42,8 +44,10 @@ class Grid(object):
 
     def calculate_listOf_l_m_tuples(self):
         # Check Required variables
-        if ((self.dimension == 34) and (self.initial_m == None)): raise IOError("initial_m should be initialized before getting (l,m) tuples")
-        if (self.dimension == None): raise IOError("dimension should be initialized before getting (l,m) tuples")
+        if ((self.dimension == 34) and (self.initial_m == None)):
+            raise IOError("initial_m should be initialized before getting (l,m) tuples")
+        if (self.dimension == None): 
+            raise IOError("dimension should be initialized before getting (l,m) tuples")
 
         # Construct the list of (l,m) tuples, depending on qprop dimension (self.dimension)
         listOf_l_m_tuples = []
@@ -54,12 +58,21 @@ class Grid(object):
         elif (self.dimension == 34):
             for l in range(self.numOfEllGrid):
                 listOf_l_m_tuples.append((l,self.initial_m))
-        else: raise IOError("Unknown qprop dimension")
+        else: raise Exception("Unknown qprop dimension")
 
         self.listOf_l_m_tuples = listOf_l_m_tuples
 
         # Return the list of (l,m) tuples
         return listOf_l_m_tuples
+
+    def get_valid_lm_mask(self):
+        valid_lm_mask = None        
+        if self.dimension == 34:
+            valid_lm_mask = np.arange(self.numOfEllGrid) >= int(abs(self.initial_m))
+        elif self.dimension == 44:
+            valid_lm_mask = np.full(self.numOfEllGrid, True, dtype=bool)
+        else: raise Exception("Unknown qprop dimension")
+        return valid_lm_mask
 
     def get_l_m_iterator(self):
         if self.dimension == 34:

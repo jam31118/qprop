@@ -103,6 +103,8 @@ class Wavefunction(object):
             l = lm_tuple[0]
             m = lm_tuple[1]
             self.arrayOfSpheriHarm[lm_tuple_idx,:,:] = vectorized_spheriHarm(m, l, gridOfPhi, gridOfTheta)
+        valid_lm_mask = self.grid.get_valid_lm_mask()
+        self.arrayOfSpheriHarm[~valid_lm_mask] = 0  # make zero, replacing the nan
 
     def reconstructInRealSpace(self, arrayOfThetaValue=[], arrayOfPhiValue=[]):
 
