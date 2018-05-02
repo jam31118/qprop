@@ -5,6 +5,49 @@ from numpy import pi
 import pandas as pd
 import matplotlib.pyplot as plt
 
+supported_vecpot_shape = ['sin-square']
+supported_vecpot_direction = ['x','y','z']
+
+def is_supported_vecpot_shape(shape):
+    assert type(shape) is str
+    is_in_support_list = shape.lower() in supported_vecpot_shape
+    return is_in_support_list
+
+def is_supported_vecpot_direction(direction):
+    assert type(direction) is str
+    is_in_support_list = direction.lower() in supported_vecpot_direction
+    return is_in_support_list
+
+def make_str_list_to_lowercase(str_list):
+    for string in str_list: assert type(string) is str
+    return [string.lower() for string in str_list]
+
+def directions_are_consistent(directions):
+    for direction in directions:
+        assert is_supported_vecpot_direction(direction)
+    directions_lowercase = [direction.lower() for direction in directions]
+    has_x_direction = 'x' in directions_lowercase
+    has_y_direction = 'y' in directions_lowercase
+    has_z_direction = 'z' in directions_lowercase
+    xor = has_z_direction ^ (has_x_direction or has_y_direction)
+    return xor
+
+def get_dimensIon_from_directions(directions):
+    assert directions_are_consistent(directions)
+    directions_lowercase = [direction.lower() for direction in directions]
+    dimension = None
+    dimen_is_34 = 'z' in directions_lowercase
+    dimen_is_44 = ('x' in directions_lowercase) or ('y' in directions_lowercase)
+    assert dimen_is_34 ^ dimen_is_44
+    if dimen_is_34: return 34
+    if dimen_is_44: return 44
+        
+def get_phase_diff_of_ellipticity(e):
+    cos_beta = (1 - (1-e)**2) / (1 + (1-e)**2)
+    beta = np.arccos(cos_beta)
+    return beta
+
+
 
 class Vecpot(object):
 #    def __init__(start_time, end_time):
@@ -12,15 +55,29 @@ class Vecpot(object):
 
     def get_duration(): pass
 
+    def get_start_time(self): pass
+        
+    def get_end_time(self): pass
+
+    def __call__(self, t): pass
+
 
 class Single_Vecpot(Vecpot):
-    def __init__(self, omega, num_cycles, E0, phase, 
-            start_time=0.0):
+    def __init__(self, omega, num_cycles, E0, phase, direction, 
+            start_time=0.0, shape='sin-square'):
 
+        ## Check input arguments
         for arg in [omega, num_cycles, E0, phase, start_time]:
             assert isinstance(arg, Real)
+
         for positive_arg in [omega, num_cycles, E0, start_time]:
             assert positive_arg >= 0
+
+        for str_arg in [direction, shape]:
+            assert type(str_arg) is str
+
+        assert is_supported_vecpot_shape(shape)
+        assert is_supported_vecpot_direction(direction)
         
         ## Variables which should be initialized in __init__()
         self.omega = omega
@@ -30,6 +87,8 @@ class Single_Vecpot(Vecpot):
         self.start_time = start_time
         self.duration = self.get_duration()
         self.end_time = self.get_end_time()
+        self.shape = shape.lower()
+        self.direction = direction.lower()
     
     def get_duration(self):
         return self.num_cycles * 2 * pi / self.omega
@@ -39,12 +98,31 @@ class Single_Vecpot(Vecpot):
         
     def get_end_time(self):
         return self.start_time + self.get_duration()
+    
+    def __call__(self, t):
+        ww = self.omega / (2.0 * self.num_cycles)
+        carrier = np.sin(self.omega * t + self.phase)
+        envelope = self.E0 / self.omega * np.square(np.sin(ww * t))
+        vecpot_value = envelope * carrier
+        if isinstance(vecpot_value, np.ndarray):
+            out_of_pulse_mask = (t < self.start_time) | (self.end_time < t)
+            vecpot_value[out_of_pulse_mask] = 0.0
+        elif isinstance(vecpot_value, Real):
+            is_out_of_pulse = (t < self.start_time) or (self.end_time < t)
+            if is_out_of_pulse:
+                vecpot_value = 0.0
+        return vecpot_value
+
+    def __add__(self, vecpot):
+        assert type(vecpot) is type(self)
+        return Superposed_Vecpot([self, vecpot])
 
 
 class Superposed_Vecpot(Vecpot):
     def __init__(self, vecpots):
         assert len(vecpots) >= 1
         for vecpot in vecpots: assert isinstance(vecpot, Vecpot)
+        assert self.vecpots_directions_are_consistent(vecpots)
 
         self.vecpots = vecpots
 
@@ -53,6 +131,9 @@ class Superposed_Vecpot(Vecpot):
         assert self.start_time < self.end_time
         
         self.duration = self.get_duration()
+        
+        self.dimension = self.get_dimensIon_from_vecpots(vecpots)
+
 
     def get_start_time(self):
         min_start_time = min(
@@ -71,12 +152,52 @@ class Superposed_Vecpot(Vecpot):
         assert start_time < end_time
         return start_time - end_time
 
-    @staticmethod
-    def from_parameters(para):
-        assert hasattr(para, '__getitem__')
+    def __call__(self, t):
+        superposed_value = 0.0
+        for vecpot in self.vecpots:
+            superposed_value += vecpot(t)
+        return superposed_value
 
-        if param_names_are_in_original_form(para):
-            pass
+    @staticmethod
+    def get_directions_from_vecpots(vecpots):
+        for vecpot in vecpots:
+            assert isinstance(vecpot, Single_Vecpot)
+            hasattr(vecpot, 'direction')
+        directions = [vecpot.direction for vecpot in vecpots]
+        return directions
+
+    @classmethod
+    def vecpots_directions_are_consistent(cls, vecpots):
+        directions = cls.get_directions_from_vecpots(vecpots)
+        return directions_are_consistent(directions)
+
+    @classmethod
+    def get_dimensIon_from_vecpots(cls, vecpots):
+        directions = cls.get_directions_from_vecpots(vecpots)
+        return get_dimensIon_from_directions(directions)
+
+    def __add__(self, vecpot):
+        assert type(vecpot) in [Single_Vecpot, Superposed_Vecpot]
+        vecpots = list(self.vecpots)
+        if isinstance(vecpot, Single_Vecpot):
+            vecpots.append(vecpot)
+        elif isinstance(vecpot, Superposed_Vecpot):
+            vecpots += list(vecpot.vecpots)
+        else: raise Exception("Unexpected type of vecpot: {0}".format(vecpot))
+        result_vecpot = None
+        try: result_vecpot = Superposed_Vecpot(vecpots)
+        except Exception as e:
+            err_megs = "Failed to construct superposed vector potential object. "
+            err_megs += "Error log: {0}".format(e)
+            raise Exception(err_megs)
+        return result_vecpot
+
+#    @staticmethod
+#    def from_parameters(para):
+#        assert hasattr(para, '__getitem__')
+#
+#        if param_names_are_in_original_form(para):
+#            pass
 
 
 class Param_to_Vecpot(object):
@@ -138,164 +259,164 @@ class Param_to_Vecpot(object):
         return vp
     
 
-
-class Vecpot(object):
-    def __init__(self, qprop_dim, home_dir, omega, numOfCycle, E_max, phi_cep,
-                omega2=None, numOfCycle2=None, E_max2=None, phi_cep2=None, delay=None):
-
-        self.qprop_dim = qprop_dim
-        self.home_dir = home_dir
-        self.omega, self.numOfCycle, self.E_max, self.phi_cep = omega, numOfCycle, E_max, phi_cep
-        self.duration = self.numOfCycle * 2 * np.pi / self.omega
-        self.ww = self.omega / (2.0 * self.numOfCycle)
-
-        ## Check whether second wave is present
-        ## .. by checking 'omega, number of cycles, max electric field and delay' is present
-        self.haveSecondVecpotParam = all([omega2, numOfCycle2, E_max2])
-        self.haveDelay = delay != None
-        self.haveSecondVecpot = self.haveSecondVecpotParam and self.haveDelay
-
-        ## When second wave is included,
-        if (self.haveSecondVecpot):
-            self.omega2, self.numOfCycle2, self.E_max2, self.phi_cep2 = omega2, numOfCycle2, E_max2, phi_cep2
-            self.delay = delay
-            self.duration2 = self.numOfCycle2 * 2 * np.pi / self.omega2
-            self.ww2 = self.omega2 / (2.0 * self.numOfCycle2)
-
-        self.fileLoadingCompleted = False
-
-    def get_duration(self):
-        timeAtWhichFirstVecpotEnds = self.duration
-        if (self.haveSecondVecpot):
-            timeAtWhichSecondVecpotEnds = self.delay + self.duration2
-        else:
-            timeAtWhichSecondVecpotEnds = 0.0
-
-        if (timeAtWhichFirstVecpotEnds > timeAtWhichSecondVecpotEnds):
-            totalDuration = timeAtWhichFirstVecpotEnds
-        else:
-            totalDuration = timeAtWhichSecondVecpotEnds
-
-        if (self.E_max == 0.0) and (self.E_max2 == 0.0):
-            totalDuration = 0
-
-        return totalDuration
-
-    def load(self, vpot_filename=''):
-        ## Get vector potential data file name
-        if vpot_filename == '':
-            # Set filename automatically according to qprop dimension
-            if self.qprop_dim == 34:
-                filename_without_fullpath = 'hydrogen_re-vpot_z.dat'
-            elif self.qprop_dim == 44:
-                filename_without_fullpath = 'hydrogen_re-vpot_xy.dat'
-            else:
-                raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
-            # Construct full file path
-            vpot_filename = os.path.join(self.home_dir,filename_without_fullpath)
-
-        # Check existence of the vecpot data file
-        if not os.path.exists(vpot_filename):
-            raise IOError("No vecpot data file with name: %s" % (vpot_filename))
-
-        ## Set column names
-        if (self.qprop_dim == 34):
-            column_names = ['time', 'vpot_z']
-        elif (self.qprop_dim == 44):
-            column_names = ['time', 'vpot_x', 'vpot_y']
-        else:
-            raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
-        #self.data = pd.read_table(vpot_filename, header=None, sep='\s+', names=['time','vpot_x', 'vpot_y'])
-        self.data = pd.read_table(vpot_filename, header=None, sep='\s+', names=column_names)
-        self.fileLoadingCompleted = True
-
-
-
-    def plot(self, saveFigureName='', rcParams={}, fig=None, subplot_index=(), **kwargs):
-        """
-        'kwargs' is delivered to plotter such as matplotlib.pyplot.plot() etc.
-        """
-
-        if not self.fileLoadingCompleted:
-            try:
-                self.load()
-            except:
-                raise IOError("No data have been loaded from file")
-
-        ## Parse 'kwargs' for sophisticated plotting
-        if 'figsize' in kwargs.keys(): self.figsize = kwargs.pop('figsize')
-        else: self.figsize = (13,7)
-
-
-        ## Set figure object
-        if fig == None:
-            fig = plt.figure(figsize=self.figsize)
-        else:
-            # [NOTE] it would be good to check if 'fig' is of type 'matplotlib.figure.Figure'
-            fig = fig
-
-
-        ## Set projection mode
-        if self.qprop_dim == 34:
-            projection = None
-        elif self.qprop_dim == 44:
-            projection = '3d'
-        else:
-            raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
-
-
-        ## Set Axes object
-        if (type(subplot_index) != tuple):
-            # In case where subplot_index is given in a form of scalar
-            # .. such as '111' which is equivalent to '1,1,1'
-            ax = fig.add_subplot(subplot_index, projection=projection)
-        elif (type(subplot_index) == tuple) and (len(subplot_index) != 0):
-            # In case where subplot_index is given in a form of tuple
-            # .. such as '(1,1,1)' which will be unpacked when passing to fig.add_subplot()
-            ax = fig.add_subplot(*subplot_index, projection=projection)
-        else:
-            ax = fig.gca(projection=projection)
-
-
-        ## Actual plotting happens here
-        if (self.qprop_dim == 34):
-            # Data Generation
-            timeMask = self.data['time'] < self.get_duration()
-            x = self.data.loc[timeMask,'time']
-            y = self.data.loc[timeMask,'vpot_z']
-
-            # Plot
-            ax.plot(x,y, **kwargs)
-
-            # Labeling
-            ax.set_xlabel('time (a.u.)')
-            ax.set_ylabel(r'$A_z$(a.u.)')
-
-        elif (self.qprop_dim == 44):
-            # Data Generation
-            timeMask = self.data['time'] < self.get_duration()
-            x = self.data.loc[timeMask,'time']
-            y = self.data.loc[timeMask,'vpot_x']
-            z = self.data.loc[timeMask,'vpot_y']
-
-            # Plot
-            #ax = fig.gca(projection='3d')
-            ax.plot(x,y,z, **kwargs)
-
-            # Labeling
-            ax.set_xlabel('time (a.u.)')
-            ax.set_ylabel(r'$A_x$(a.u.)')
-            ax.set_zlabel(r'$A_y$(a.u.)')
-
-        else:
-            raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
-
-        ## Save figure if specified
-        if (saveFigureName != ''):
-            plt.savefig(saveFigureName)
-
-
-        ## Return handles
-        return fig, ax
-
+#
+#class Vecpot(object):
+#    def __init__(self, qprop_dim, home_dir, omega, numOfCycle, E_max, phi_cep,
+#                omega2=None, numOfCycle2=None, E_max2=None, phi_cep2=None, delay=None):
+#
+#        self.qprop_dim = qprop_dim
+#        self.home_dir = home_dir
+#        self.omega, self.numOfCycle, self.E_max, self.phi_cep = omega, numOfCycle, E_max, phi_cep
+#        self.duration = self.numOfCycle * 2 * np.pi / self.omega
+#        self.ww = self.omega / (2.0 * self.numOfCycle)
+#
+#        ## Check whether second wave is present
+#        ## .. by checking 'omega, number of cycles, max electric field and delay' is present
+#        self.haveSecondVecpotParam = all([omega2, numOfCycle2, E_max2])
+#        self.haveDelay = delay != None
+#        self.haveSecondVecpot = self.haveSecondVecpotParam and self.haveDelay
+#
+#        ## When second wave is included,
+#        if (self.haveSecondVecpot):
+#            self.omega2, self.numOfCycle2, self.E_max2, self.phi_cep2 = omega2, numOfCycle2, E_max2, phi_cep2
+#            self.delay = delay
+#            self.duration2 = self.numOfCycle2 * 2 * np.pi / self.omega2
+#            self.ww2 = self.omega2 / (2.0 * self.numOfCycle2)
+#
+#        self.fileLoadingCompleted = False
+#
+#    def get_duration(self):
+#        timeAtWhichFirstVecpotEnds = self.duration
+#        if (self.haveSecondVecpot):
+#            timeAtWhichSecondVecpotEnds = self.delay + self.duration2
+#        else:
+#            timeAtWhichSecondVecpotEnds = 0.0
+#
+#        if (timeAtWhichFirstVecpotEnds > timeAtWhichSecondVecpotEnds):
+#            totalDuration = timeAtWhichFirstVecpotEnds
+#        else:
+#            totalDuration = timeAtWhichSecondVecpotEnds
+#
+#        if (self.E_max == 0.0) and (self.E_max2 == 0.0):
+#            totalDuration = 0
+#
+#        return totalDuration
+#
+#    def load(self, vpot_filename=''):
+#        ## Get vector potential data file name
+#        if vpot_filename == '':
+#            # Set filename automatically according to qprop dimension
+#            if self.qprop_dim == 34:
+#                filename_without_fullpath = 'hydrogen_re-vpot_z.dat'
+#            elif self.qprop_dim == 44:
+#                filename_without_fullpath = 'hydrogen_re-vpot_xy.dat'
+#            else:
+#                raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
+#            # Construct full file path
+#            vpot_filename = os.path.join(self.home_dir,filename_without_fullpath)
+#
+#        # Check existence of the vecpot data file
+#        if not os.path.exists(vpot_filename):
+#            raise IOError("No vecpot data file with name: %s" % (vpot_filename))
+#
+#        ## Set column names
+#        if (self.qprop_dim == 34):
+#            column_names = ['time', 'vpot_z']
+#        elif (self.qprop_dim == 44):
+#            column_names = ['time', 'vpot_x', 'vpot_y']
+#        else:
+#            raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
+#        #self.data = pd.read_table(vpot_filename, header=None, sep='\s+', names=['time','vpot_x', 'vpot_y'])
+#        self.data = pd.read_table(vpot_filename, header=None, sep='\s+', names=column_names)
+#        self.fileLoadingCompleted = True
+#
+#
+#
+#    def plot(self, saveFigureName='', rcParams={}, fig=None, subplot_index=(), **kwargs):
+#        """
+#        'kwargs' is delivered to plotter such as matplotlib.pyplot.plot() etc.
+#        """
+#
+#        if not self.fileLoadingCompleted:
+#            try:
+#                self.load()
+#            except:
+#                raise IOError("No data have been loaded from file")
+#
+#        ## Parse 'kwargs' for sophisticated plotting
+#        if 'figsize' in kwargs.keys(): self.figsize = kwargs.pop('figsize')
+#        else: self.figsize = (13,7)
+#
+#
+#        ## Set figure object
+#        if fig == None:
+#            fig = plt.figure(figsize=self.figsize)
+#        else:
+#            # [NOTE] it would be good to check if 'fig' is of type 'matplotlib.figure.Figure'
+#            fig = fig
+#
+#
+#        ## Set projection mode
+#        if self.qprop_dim == 34:
+#            projection = None
+#        elif self.qprop_dim == 44:
+#            projection = '3d'
+#        else:
+#            raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
+#
+#
+#        ## Set Axes object
+#        if (type(subplot_index) != tuple):
+#            # In case where subplot_index is given in a form of scalar
+#            # .. such as '111' which is equivalent to '1,1,1'
+#            ax = fig.add_subplot(subplot_index, projection=projection)
+#        elif (type(subplot_index) == tuple) and (len(subplot_index) != 0):
+#            # In case where subplot_index is given in a form of tuple
+#            # .. such as '(1,1,1)' which will be unpacked when passing to fig.add_subplot()
+#            ax = fig.add_subplot(*subplot_index, projection=projection)
+#        else:
+#            ax = fig.gca(projection=projection)
+#
+#
+#        ## Actual plotting happens here
+#        if (self.qprop_dim == 34):
+#            # Data Generation
+#            timeMask = self.data['time'] < self.get_duration()
+#            x = self.data.loc[timeMask,'time']
+#            y = self.data.loc[timeMask,'vpot_z']
+#
+#            # Plot
+#            ax.plot(x,y, **kwargs)
+#
+#            # Labeling
+#            ax.set_xlabel('time (a.u.)')
+#            ax.set_ylabel(r'$A_z$(a.u.)')
+#
+#        elif (self.qprop_dim == 44):
+#            # Data Generation
+#            timeMask = self.data['time'] < self.get_duration()
+#            x = self.data.loc[timeMask,'time']
+#            y = self.data.loc[timeMask,'vpot_x']
+#            z = self.data.loc[timeMask,'vpot_y']
+#
+#            # Plot
+#            #ax = fig.gca(projection='3d')
+#            ax.plot(x,y,z, **kwargs)
+#
+#            # Labeling
+#            ax.set_xlabel('time (a.u.)')
+#            ax.set_ylabel(r'$A_x$(a.u.)')
+#            ax.set_zlabel(r'$A_y$(a.u.)')
+#
+#        else:
+#            raise IOError("Unsupported qprop_dimension: %d\n" % (self.qprop_dim))
+#
+#        ## Save figure if specified
+#        if (saveFigureName != ''):
+#            plt.savefig(saveFigureName)
+#
+#
+#        ## Return handles
+#        return fig, ax
+#
 
