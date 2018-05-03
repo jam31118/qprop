@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 supported_vecpot_shape = ['sin-square']
 supported_vecpot_direction = ['x','y','z']
+supported_dimension = [34, 44]
 
 def is_supported_vecpot_shape(shape):
     assert type(shape) is str
@@ -17,6 +18,11 @@ def is_supported_vecpot_direction(direction):
     assert type(direction) is str
     is_in_support_list = direction.lower() in supported_vecpot_direction
     return is_in_support_list
+
+def is_supported_dimension(dimension):
+    assert isinstance(dimension, Real)
+    dimension = int(dimension)
+    return dimension in supported_dimension
 
 def make_str_list_to_lowercase(str_list):
     for string in str_list: assert type(string) is str
@@ -48,6 +54,65 @@ def get_phase_diff_of_ellipticity(e):
     return beta
 
 
+from matplotlib.axes import Axes
+from mpl_toolkits.mplot3d import Axes3D
+def plot_vecpot(ax, dimension, t, Ax=None, Ay=None, Az=None, **plot_kwargs):
+    assert isinstance(ax, Axes)
+    assert is_supported_dimension(dimension)
+#    Az_given = Az is not None
+#    Ax_or_Ay_given = (Ax is not None) or (Ay is not None)
+#
+#    inferred_dimension = None
+#    assert Az_given ^ Ax_or_Ay_given
+#    if Az_given: inferred_dimension = 34
+#    elif Ax_or_Ay_given: inferred_dimension = 44
+#    else: raise Exception("Unexpected case.")
+#    
+#    if dimension is None: dimension = inferred_dimension
+#    else:
+#        is_supported_dimension(dimension) 
+#        assert inferred_dimension == dimension
+    
+    if dimension == 34:
+        assert Az is not None
+        ax.plot(t, Az, **plot_kwargs)
+    elif dimension == 44:
+        assert (Ax is not None) and (Ay is not None)
+        assert isinstance(ax, Axes3D)
+        ax.plot(t, Ax, Ay, **plot_kwargs)
+
+
+from os.path import isfile
+def load_qprop_vecpot_from_file(filename, dimension=None):
+    if not isfile(filename):
+        err_mesg = "Vector potential data file doesn't exist: {0}"
+        raise IOError(err_mesg.format(filename))
+    if dimension is not None:
+        assert is_supported_dimension(dimension)
+    
+    loaded_array = None
+    try: loaded_array = np.loadtxt(filename)
+    except: 
+        err_mesg = "Failed to load vector potential array from file: {0}"
+        raise IOError(err_mesg.format(filename))
+
+    num_of_loaded_columns = loaded_array.shape[1]
+    loaded_dimension = None
+    if num_of_loaded_columns == 2:
+        loaded_dimension = 34
+    elif num_of_loaded_columns == 3:
+        loaded_dimension = 44
+    else: 
+        err_mesg = "Unexpected number of columns ({0}) from file: {1}"
+        raise Exception(err_mesg.format(num_of_loaded_columns, filename))
+    
+    assert loaded_dimension is not None
+    if dimension is None: dimension = loaded_dimension
+    else: assert loaded_dimension == dimension
+    
+    return loaded_array
+
+
 
 class Vecpot(object):
 #    def __init__(start_time, end_time):
@@ -60,6 +125,35 @@ class Vecpot(object):
     def get_end_time(self): pass
 
     def __call__(self, t): pass
+
+
+
+class Loaded_Vecpot(Vecpot):
+    def __init__(self, dimension, filename):
+        assert is_supported_dimension(dimension)
+        self.dimension = int(dimension)
+        self.t, self.Ax, self.Ay, self.Az = [None] * 4
+        zero_array = np.zeros_like(self.t)
+        loaded_array = load_qprop_vecpot_from_file(filename, dimension=dimension)
+        if self.dimension == 34:
+            self.t, self.Az = loaded_array.transpose()
+            self.Ax, self.Ay = zero_array.copy(), zero_array.copy()
+        elif self.dimension == 44:
+            self.t, self.Ax, self.Ay = loaded_array.transpose()
+            self.Az = zero_array.copy()
+        else: raise Exception("Unexpected dimension: {0}".format(self.dimension))
+
+    def plot(self, ax=None):
+        projection = None
+        if self.dimension == 44: projection = '3d'
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.gca(projection=projection)
+
+        plot_vecpot(ax, t=self.t, Ax=self.Ax, Ay=self.Ay, Az=self.Az, 
+                dimension=self.dimension)
+
+        return ax
 
 
 class Single_Vecpot(Vecpot):
