@@ -47,7 +47,7 @@
 # Thus, it should be fixed for other version of QPROP
 
 import os
-from os.path import isfile, abspath, join
+from os.path import isfile, isdir, abspath, join, getsize
 from sys import stderr
 
 import pandas as pd
@@ -112,13 +112,14 @@ class Qprop(object):
 class Qprop20(Qprop):
 
     def __init__(self, paramFileDir='.', home=None, guess_line_num_of_wf_file=False,
-        vecpot_filename=''):
+        vecpot_filename='', wf_filename=''):
         """
         If Default 'paramFileDir' is current directory (designated by '.')
         If 'home' isn't given, 'paramFileDir' becomes the home directory of this calculation object 'qprop20'
         """
         ## Check input parameters
         assert type(vecpot_filename) is str
+        assert type(wf_filename) is str
 
         ## Try to change the input paramFileDir into python string type
         try:
@@ -136,11 +137,11 @@ class Qprop20(Qprop):
         #else:
         #    raise TypeError("Parameter file directory should be given as %s" % str)
 
-
         ## Setting home directory of this home file
-        if home != None: self.home = home
+        if home is not None: self.home = home
         else: self.home = paramFileDir
         self.home = abspath(self.home)
+        assert isdir(self.home)
 
 
         ## Support both list and dict type
@@ -198,26 +199,40 @@ class Qprop20(Qprop):
                 r_grid_size = self.propagateParam['imag-width'] + self.propagateParam['R-max']
 
             numOfRadialGrid = int(r_grid_size / self.initialParam['delta-r'])
+            print("The number of radial grid poinst has been estimated and thus may not be accurate.",
+                    file=stderr)
+
         else:
+            ## Determine name of wavefunction data file to be used for estimating radial grid number.
+            if wf_filename == '':
+                contents_in_home_dir = os.listdir(self.home)
+                for wf_file_name in default_config['wf_file_name']:
+                    if wf_file_name in contents_in_home_dir:
+                        wf_filename = join(self.home, wf_file_name)
+                        break
+            else: assert isfile(wf_filename)
+            
             # [180219 NOTE] This should be fixed to more reliable method!
             # .. since the number of lines in 'hydrogen_re-wf.dat' changes during the calculation.
             # .. Thus, if user want to analyze some intermediate data (such as initial wavefunction),
             # .. misleading number of entry (and thus 'numOfRadialGrid') is obtained
             # .. which would spoil the analysis.
-            wf_filename = self.home + '/hydrogen_re-wf.dat'
-            wf_filename = os.path.abspath(wf_filename)
+#            wf_filename = self.home + '/hydrogen_re-wf.dat'
+#            wf_filename = os.path.abspath(wf_filename)
 
             #wf_raw = np.genfromtxt(wf_filename, delimiter=' ', dtype=np.double)
             #wf_data_1d_array = np.apply_along_axis(lambda arr: complex(*arr), 1, wf_raw)
             #del wf_raw
             #num_of_entry = wf_data_1d_array.shape[0]
-            with open(wf_filename) as f:
-                for i, l in enumerate(f): pass
-            num_of_entry = i + 1
-            assert num_of_entry == int(num_of_entry)
-            num_of_entry = int(num_of_entry)
 
-            num_of_entry_per_wavefunction = num_of_entry / 2
+#            with open(wf_filename) as f:
+#                for i, l in enumerate(f): pass
+#            num_of_entry = i + 1
+#            assert num_of_entry == int(num_of_entry)
+#            num_of_entry = int(num_of_entry)
+
+            num_of_entry_per_wavefunction = self._get_num_of_complex_number_in_file(wf_filename)
+#            num_of_entry_per_wavefunction = num_of_entry / 2
             if self.initialParam['qprop-dim'] == 34:
                 numOfRadialGrid = num_of_entry_per_wavefunction / self.propagateParam['ell-grid-size']
             if self.initialParam['qprop-dim'] == 44:
@@ -297,16 +312,81 @@ class Qprop20(Qprop):
 #                                 *secondVecpotParam,
 #                                 delay=delay)
 
-
         ## Define flags for information to methods
         #self.haveReadPolarSpectrum = False
         self.haveReadPartialSpectrum = False
 
-
         ## Define Momentum polar spectrum
         self.momentum_spectrum_polar = MomentumSpectrumPolar(self)
 
+    def _get_num_of_complex_number_in_file(self, wf_filename, size_of_complex_num=None):
+        assert isfile(wf_filename)
+        num_of_complex_num = None
+        if self._seems_binary_wf_file(wf_filename):
+            size_of_complex_num = self.get_size_of_complex_number(size_of_complex_num)
+            file_size = getsize(wf_filename)
+            num_of_complex_num = int(file_size // size_of_complex_num)
+            assert (file_size % size_of_complex_num) == 0
+        else:
+            with open(wf_filename) as f:
+                for i, l in enumerate(f): pass
+            num_of_complex_num = i + 1
+            assert num_of_entry == int(num_of_complex_num)
+            num_of_complex_num = int(num_of_complex_num)
+        return num_of_complex_num
+
+    def _seems_binary_wf_file(self, filepath):
+        file_size = None
+        if isfile(filepath): file_size = getsize(filepath)
+        else: raise IOError("Cannot find file: {0}".format(filepath))
+
+        size_of_file_can_be_factored_into_grid_dimension = \
+                self._can_be_factored_into_grid_dimensions(file_size)
+        seems_binary_wf_file = size_of_file_can_be_factored_into_grid_dimension
+        return seems_binary_wf_file
+    
+    def _can_be_factored_into_grid_dimensions(self, size_in_bytes, size_of_complex_num=None):
+        """Check whether the given size is dividable by grid sizes.
+        The grid sizes include the number of radial grid points
+        and ell_m_grid_size in qprop."""
+        size_of_complex_num = self.get_size_of_complex_number(size_of_complex_num)
+        ell_m_grid_size = self._get_ell_m_grid_size()
+
+#        can_be_factored = True  # initialization
+#
+#        num_of_complex_number = size_in_bytes // size_per_complex_num
+#        num_of_raidal_grid_point = num_of_complex_number // ell_m_grid_size
+#
+#        can_be_factored &= (size_in_bytes % size_per_complex_num) == 0
+#        can_be_factored &= (num_of_complex_number % ell_m_grid_size) == 0
+        remainder = size_in_bytes % (ell_m_grid_size * size_of_complex_num)
+        can_be_factored = remainder == 0
+        return can_be_factored
+
+    @staticmethod
+    def get_size_of_complex_number(size_of_complex_num=None):
+        if size_of_complex_num is None:
+            size_of_complex_num = default_config['size_of_complex_number']
+        else:
+            size_of_complex_num_int = int(size_of_complex_num)
+            assert size_of_complex_num == size_of_complex_num_int
+            size_of_complex_num = size_of_complex_num_int
+        return size_of_complex_num
+
+    def _get_ell_m_grid_size(self):
+        """Return the number of basis (spherical harmonics) used in wavefunction expansion."""
+        qprop_dim = self._get_qprop_dim()
+        ell_grid_size = self.get_parameter('propagate.param', 'ell-grid-size')
+        ell_m_grid_size = None
+        if qprop_dim == 34:
+            ell_m_grid_size = ell_grid_size
+        elif qprop_dim == 44:
+            ell_m_grid_size = ell_grid_size ** 2
+        else: raise Exception("Unexpected qprop dimension: {0}".format(qprop_dim))
+        return ell_m_grid_size
+
     def _get_qprop_dim(self):
+        """Return grid dimension used in qprop"""
         return self.get_parameter('initial.param', 'qprop-dim')
 
     def get_parameter(self, param_file_name, param_name):
