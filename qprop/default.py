@@ -8,6 +8,7 @@ default_config = {
     'wf_file_name' : [
         'current-wf.bin',
         ],
+    'wf_index_in_file' : 0,
     'size_of_complex_number' : 16,
 }
 

@@ -204,13 +204,14 @@ class Qprop20(Qprop):
 
         else:
             ## Determine name of wavefunction data file to be used for estimating radial grid number.
-            if wf_filename == '':
-                contents_in_home_dir = os.listdir(self.home)
-                for wf_file_name in default_config['wf_file_name']:
-                    if wf_file_name in contents_in_home_dir:
-                        wf_filename = join(self.home, wf_file_name)
-                        break
-            else: assert isfile(wf_filename)
+#            if wf_filename == '':
+#                contents_in_home_dir = os.listdir(self.home)
+#                for wf_file_name in default_config['wf_file_name']:
+#                    if wf_file_name in contents_in_home_dir:
+#                        wf_filename = join(self.home, wf_file_name)
+#                        break
+#            else: assert isfile(wf_filename)
+            wf_filename = self._determine_wf_filepath(wf_filename)
             
             # [180219 NOTE] This should be fixed to more reliable method!
             # .. since the number of lines in 'hydrogen_re-wf.dat' changes during the calculation.
@@ -282,7 +283,7 @@ class Qprop20(Qprop):
         self.vecpot = None
 #        if firstVecpotParam is None:
         if vecpot_filename == '':
-            vecpot_filename = default_config['vecpot_file_name']
+            vecpot_filename = join(self.home, default_config['vecpot_file_name'])
         else:
             if not isfile(vecpot_filename):
                 vecpot_prefixed_filename = join(self.home, vecpot_filename)
@@ -290,7 +291,8 @@ class Qprop20(Qprop):
                     vecpot_filename = vecpot_prefixed_filename
                 else:
                     raise IOError("Couldn't find vector potential data file: {0}".format(vecpot_filename))
-        
+        if not isfile(vecpot_filename):
+            raise IOError("Couldn't find vector potential data file: {0}".format(vecpot_filename))
 
         if isfile(vecpot_filename):
             try: self.vecpot = Loaded_Vecpot(self.dimension, vecpot_filename)
@@ -318,6 +320,22 @@ class Qprop20(Qprop):
 
         ## Define Momentum polar spectrum
         self.momentum_spectrum_polar = MomentumSpectrumPolar(self)
+
+    def _determine_wf_filepath(self, wf_filename=''):
+        """Return path of given name of wavefunction data file.
+        
+        Given ``wf_filename`` should be relative path to the wavefunction data file,
+        with respect to home directory of qprop object
+        (the calculation directory in which where parameter files exist)
+        """
+        if wf_filename == '':
+            contents_in_home_dir = os.listdir(self.home)
+            for wf_file_name in default_config['wf_file_name']:
+                if wf_file_name in contents_in_home_dir:
+                    wf_filename = join(self.home, wf_file_name)
+                    break
+        else: assert isfile(wf_filename)
+        return wf_filename
 
     def _get_num_of_complex_number_in_file(self, wf_filename, size_of_complex_num=None):
         assert isfile(wf_filename)
@@ -485,8 +503,7 @@ class Qprop20(Qprop):
         self.haveReadPartialSpectrum = True
 
 
-
-    def get_ell_spectrum(self, wf_filename=None, wf_index=1):
+    def get_ell_spectrum(self, wf_filename=None, wf_index=None):
         """
 
         ## Arguments ##
@@ -498,18 +515,28 @@ class Qprop20(Qprop):
         if wf_filename is not None:
             assert type(wf_filename) is str
         else:
-            abs_path_home = os.path.abspath(self.home)
-            default_data_file_name = 'hydrogen_re-wf.dat'
-            default_wf_file_abs_path = os.path.join(abs_path_home, default_data_file_name)
-            #default_wf_filename = self.home + '/' + 'hydrogen_re-wf.dat'
-            wf_filename = default_wf_file_abs_path
+#            abs_path_home = os.path.abspath(self.home)
+#            default_data_file_name = 'hydrogen_re-wf.dat'
+#            default_wf_file_abs_path = os.path.join(abs_path_home, default_data_file_name)
+#            #default_wf_filename = self.home + '/' + 'hydrogen_re-wf.dat'
+#            wf_filename = default_wf_file_abs_path
+            wf_filename = self._determine_wf_filepath(wf_filename='')
+
+        if wf_index is None:
+            wf_index = default_config['wf_index_in_file']
+        else:
+            assert wf_index == int(wf_index)
+            wf_index = int(wf_index)
+
+        wf_file_seems_binary = self._seems_binary_wf_file(wf_filename)
+
         assert os.path.isfile(wf_filename)
 
         assert int(wf_index) == wf_index
         wf_index = int(wf_index)
 
         wf = Wavefunction(self.grid)
-        try: wf.load(wf_filename, wf_index)
+        try: wf.load(wf_filename, wf_index, binary=wf_file_seems_binary)
         except: raise Exception("The wavefunction couldn't be loaded.")
 
         wf_sq = np.abs(wf.data_2d)
