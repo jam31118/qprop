@@ -49,6 +49,7 @@
 import os
 from os.path import isfile, isdir, abspath, join, getsize
 from sys import stderr
+from operator import __ior__, __iand__
 
 import pandas as pd
 import numpy as np
@@ -884,7 +885,7 @@ class Qprop20(Qprop):
 
 
     @staticmethod
-    def has_files_with_extensions(calc_home_path, required_extensions=[]):
+    def has_files_with_extensions(calc_home_path, required_extensions=[], mode='AND'):
         assert os.path.isdir(calc_home_path)
         home_contents = os.listdir(calc_home_path)
         extensions = [os.path.splitext(content)[1] for content in home_contents]
@@ -893,10 +894,22 @@ class Qprop20(Qprop):
         assert len(required_extensions) > 0
         #required_extension_list = required_extensions
         #print(extensions)
-        has_all_required_ext = True
+        
+        mode_lower = mode.lower()
+        assert mode_lower in ['and', 'or']
+
+        has_all_required_ext, _op = None, None
+        if mode_lower == 'and':
+            has_all_required_ext = True
+            _op = __iand__
+        elif mode_lower == 'or':
+            has_all_required_ext = False
+            _op = __ior__
+        assert (has_all_required_ext is not None) and (_op is not None)
+
         for required_extension in required_extensions:
             has_this_required_ext = required_extension in extensions
-            has_all_required_ext &= has_this_required_ext
+            has_all_required_ext = _op(has_all_required_ext, has_this_required_ext)
 
         return has_all_required_ext
 
@@ -908,7 +921,10 @@ class Qprop20(Qprop):
     @classmethod
     def seems_to_be_a_calc_home(cls, calc_home_path):
         #return cls.has_complete_param_files(calc_home_path) and cls.has_raw_dat_etc(calc_home_path)
-        return cls.has_complete_param_files(calc_home_path) #and cls.has_files_with_extensions(calc_home_path, required_extensions=[".raw"])
+        #return cls.has_complete_param_files(calc_home_path) #and cls.has_files_with_extensions(calc_home_path, required_extensions=[".raw"])
+        calc_data_file_extensions = default_config['calc_data_file_extensions']
+        has_at_least_one_data_file = cls.has_files_with_extensions(calc_home_path, calc_data_file_extensions, mode='OR')
+        return cls.has_complete_param_files(calc_home_path) and has_at_least_one_data_file
 
     @classmethod
     def get_list_of_calc_homes(cls, dir_path_in, verbose=False):
@@ -918,6 +934,7 @@ class Qprop20(Qprop):
         dir_path_in : string or list of string
         """
         ## Check and process input arguments
+        # Process `dir_path_in` & create `dir_list` from it.
         if type(dir_path_in) is str:
             dir_list = [dir_path_in]
         elif type(dir_path_in) is list:
@@ -925,6 +942,7 @@ class Qprop20(Qprop):
                 assert type(dir_path) is str
             dir_list = dir_path_in
 
+        ## Construct a list of calculation directories
         subdir_list = []
         for dir_path in dir_list:
             if verbose: print("Finding calculation home directory from: %s" % dir_path)

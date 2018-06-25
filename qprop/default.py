@@ -10,5 +10,6 @@ default_config = {
         ],
     'wf_index_in_file' : 0,
     'size_of_complex_number' : 16,
+    'calc_data_file_extensions' : [".raw", ".bin", ".dat"],
 }
 
