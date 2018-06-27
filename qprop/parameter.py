@@ -59,44 +59,6 @@ class Param(object):
 
 
 
-
-class Param_File_List(object):
-    def __init__(self, param_file_list):
-        self.param_file_objects = param_file_list
-    
-    @classmethod
-    def from_dir(cls, dir_path):
-        assert isdir(dir_path)
-        param_file_paths = cls.get_param_file_path_list(dir_path)
-        param_file_objects = [Param_File.from_param_file(param_file_path) for param_file_path in param_file_paths]
-        return cls(param_file_objects)
-        # make a list of `Param_File` objects
-    
-    @staticmethod
-    def get_param_file_path_list(dir_path):
-        assert isdir(dir_path)
-        dir_content_paths = [join(dir_path, content) for content in listdir(dir_path) 
-                             if match(r".*\.param", content) is not None]
-        return dir_content_paths
-    
-    def if_exist_get_value(self, param):
-        matched_param_values = []
-        for param_obj in self.param_file_objects:
-            val = param_obj.if_exist_get_value(param)
-            if val is not None:
-                matched_param_values.append(val)
-#             else:
-#                 print("Queried parameter: {} couldn't be found from {}".format(param, self), file=stderr)
-        assert len(matched_param_values) <= 1
-        if len(matched_param_values) == 1:
-            return matched_param_values[0]
-        
-    def __repr__(self):
-        return self.param_file_objects.__repr__()
-    
-    def __getitem__(self, index):
-        return self.param_file_objects[index]
-
 class Param_File(object):
     def __init__(self, param_objects, param_file_path):
         self.param_objects = param_objects
@@ -126,12 +88,15 @@ class Param_File(object):
 #         ))
         return is_proper_entry
     
-    def if_exist_get_value(self, param):
+    def if_exist_get_value(self, param, default_value=None):
         matched_param_obj = [param_obj for param_obj in self.param_objects 
                              if param_obj.is_same_param(param)]
 #         print(matched_param_obj, param, self.param_objects)
         assert len(matched_param_obj) <= 1
-        if len(matched_param_obj) == 1:
+        if len(matched_param_obj) == 0:
+            if (basename(self.file_path) == param.file_name) and (default_value is not None):
+                return default_value
+        elif len(matched_param_obj) == 1:
             return matched_param_obj[0].value
     
     def __getitem__(self, param_name):
@@ -141,8 +106,49 @@ class Param_File(object):
         return "<Param_File @ {}>".format(self.file_path)
 
 
+class Param_File_List(object):
+    def __init__(self, param_file_list):
+        self.param_file_objects = param_file_list
+    
+    @classmethod
+    def from_dir(cls, dir_path):
+        assert isdir(dir_path)
+        param_file_paths = cls.get_param_file_path_list(dir_path)
+        param_file_objects = [Param_File.from_param_file(param_file_path) for param_file_path in param_file_paths]
+        return cls(param_file_objects)
+        # make a list of `Param_File` objects
+    
+    @staticmethod
+    def get_param_file_path_list(dir_path):
+        assert isdir(dir_path)
+        dir_content_paths = [join(dir_path, content) for content in listdir(dir_path) 
+                             if match(r".*\.param", content) is not None]
+        return dir_content_paths
+    
+    def if_exist_get_value(self, param, default_value=None):
+        matched_param_values = []
+        for param_file_obj in self.param_file_objects:
+            val = param_file_obj.if_exist_get_value(param, default_value=default_value)
+            if val is not None:
+                matched_param_values.append(val)
+#            else:
+#                if default_value is not None:
+#                    matched_param_values.append(default_value)
+#             else:
+#                 print("Queried parameter: {} couldn't be found from {}".format(param, self), file=stderr)
+#        print("with Param_File_list ({}), the matched_param_values: {}".format(self, matched_param_values))
+        assert len(matched_param_values) <= 1
+        if len(matched_param_values) == 1:
+            return matched_param_values[0]
+        
+    def __repr__(self):
+        return self.param_file_objects.__repr__()
+    
+    def __getitem__(self, index):
+        return self.param_file_objects[index]
 
-def filter_calc_dir(dir_list, param, criteria, verbose=False):
+
+def filter_calc_dir(dir_list, param, criteria, verbose=False, default_value=None):
     dir_list = Qprop20.get_list_of_calc_homes(dir_list, verbose=verbose)
     criteria_callable = criteria
     if not callable(criteria):
@@ -153,9 +159,10 @@ def filter_calc_dir(dir_list, param, criteria, verbose=False):
     filtered_dir_list = []
     for dirpath in dir_list:
         param_file_list = Param_File_List.from_dir(dirpath)
-        val = param_file_list.if_exist_get_value(param)
-        if criteria_callable(val):
-            filtered_dir_list.append(dirpath)
+        val = param_file_list.if_exist_get_value(param, default_value=default_value)
+        if val is not None:
+            if criteria_callable(val):
+                 filtered_dir_list.append(dirpath)
     return filtered_dir_list
 
 
