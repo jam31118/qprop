@@ -18,6 +18,13 @@ def check_param_default_config_consistency():
   assert default_config['param_file_field_per_entry'] == len(default_config['param_file_field_names'])
 
 
+type2castFunction = {
+    'double' : lambda x: float(x),
+    'long' : lambda x: int(x),
+    'bool' : lambda x: bool(x),
+}
+
+
 ## Check consistenc of this default_config dictionaryy
 check_param_default_config_consistency()
 

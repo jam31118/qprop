@@ -4,14 +4,8 @@ from re import match
 from os import listdir
 from os.path import isdir, isfile, join, basename
 
-type2castFunction = {
-    'double' : lambda x: float(x),
-    'long' : lambda x: int(x),
-    'bool' : lambda x: bool(x),
-}
-
 from .core import Qprop20
-from .default import default_config
+from .default import default_config, type2castFunction
 
 
 class Param(object):

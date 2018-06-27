@@ -66,9 +66,8 @@ from .wavefunction import Wavefunction
 from .vecpot import Vecpot, Loaded_Vecpot
 from .grid import Grid
 from .util import get_index_of_nearest_element
-from .default import default_config
+from .default import default_config, type2castFunction
 from .momentum import MomentumSpectrumPolar
-from .parameter import type2castFunction
 
 
 class parser:
