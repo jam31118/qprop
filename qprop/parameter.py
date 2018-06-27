@@ -83,15 +83,11 @@ class Param_File(object):
         if not blank_line:
             starts_from_comment_sign = str.lstrip(entry_string)[0] == default_config['param_file_comment_character']
         is_proper_entry = (not starts_from_comment_sign) and (not blank_line)
-#         print("is_proper_entry: {} / starts_from_comment_sign: {} / blank_line: {} / original string: {}".format(
-#             is_proper_entry, starts_from_comment_sign, blank_line, entry_string
-#         ))
         return is_proper_entry
     
     def if_exist_get_value(self, param, default_value=None):
         matched_param_obj = [param_obj for param_obj in self.param_objects 
                              if param_obj.is_same_param(param)]
-#         print(matched_param_obj, param, self.param_objects)
         assert len(matched_param_obj) <= 1
         if len(matched_param_obj) == 0:
             if (basename(self.file_path) == param.file_name) and (default_value is not None):
@@ -116,7 +112,6 @@ class Param_File_List(object):
         param_file_paths = cls.get_param_file_path_list(dir_path)
         param_file_objects = [Param_File.from_param_file(param_file_path) for param_file_path in param_file_paths]
         return cls(param_file_objects)
-        # make a list of `Param_File` objects
     
     @staticmethod
     def get_param_file_path_list(dir_path):
@@ -131,12 +126,6 @@ class Param_File_List(object):
             val = param_file_obj.if_exist_get_value(param, default_value=default_value)
             if val is not None:
                 matched_param_values.append(val)
-#            else:
-#                if default_value is not None:
-#                    matched_param_values.append(default_value)
-#             else:
-#                 print("Queried parameter: {} couldn't be found from {}".format(param, self), file=stderr)
-#        print("with Param_File_list ({}), the matched_param_values: {}".format(self, matched_param_values))
         assert len(matched_param_values) <= 1
         if len(matched_param_values) == 1:
             return matched_param_values[0]
@@ -180,19 +169,16 @@ def update_param_in_file(filepath, param_name, param_type, new_value):
 
     file_content_original, file_content_updated = None, None
     with open(filepath, "r") as f: file_content_original = f.read()
-#    param_exist = ' '.join([param_name, param_type]) in file_content_original
     param_exist = param_exists(file_content_original, param_name, param_type)
     if param_exist:
         pattern = ' '.join([param_name, param_type, '.*'])
         new_string = ' '.join([param_name, param_type, new_value_str])
-#        print("parttern: {0} / subs: {1}".format(pattern, new_string))
         file_content_updated = re.sub(pattern, new_string, file_content_original)
     else: 
         err_mesg = "Couldn't find parameter with name {0} of type {1} in file {2}"
         raise Exception(err_mesg.format(param_name, param_type, filepath))
     
     with open(filepath, "w") as f: f.write(file_content_updated)
-#    print("written content: ",file_content_updated)
 
 def param_exists(content_str, param_name, param_type):
     for arg in [content_str, param_name, param_type]:
