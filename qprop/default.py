@@ -11,5 +11,15 @@ default_config = {
     'wf_index_in_file' : 0,
     'size_of_complex_number' : 16,
     'calc_data_file_extensions' : [".raw", ".bin", ".dat"],
+    'param_file_field_per_entry' : 3,
+    'param_file_field_names' : ['name', 'type', 'value'],
+    'param_file_comment_character' : '#',
 }
+
+def check_param_default_config_consistency():
+  assert default_config['param_file_field_per_entry'] == len(default_config['param_file_field_names'])
+
+
+## Check consistency
+check_param_default_config_consistency()
 

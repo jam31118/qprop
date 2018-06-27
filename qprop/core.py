@@ -68,17 +68,13 @@ from .grid import Grid
 from .util import get_index_of_nearest_element
 from .default import default_config
 from .momentum import MomentumSpectrumPolar
+from .parameter import type2castFunction
 
 
 class parser:
 
     # Convert types in qprop's parameter files
     # .. into python's corresponding types
-    type2castFunction = {
-        'double' : lambda x: float(x),
-        'long' : lambda x: int(x),
-        'bool' : lambda x: bool(x),
-    }
 
     @staticmethod
     # Convert qprop's parameter files
