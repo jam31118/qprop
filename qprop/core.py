@@ -89,7 +89,7 @@ class parser:
         # Convert values in string type into values with proper numeric types
         # .. e.g. '1.0' -> 1.0 (i.e. string to float if specified as 'double' in parameter file)
         for idx in df.index:
-            df.loc[idx, 'value'] = parser.type2castFunction[df.loc[idx,'type']](df.loc[idx, 'value'])
+            df.loc[idx, 'value'] = type2castFunction[df.loc[idx,'type']](df.loc[idx, 'value'])
 
         return df['value']
 

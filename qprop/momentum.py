@@ -279,7 +279,7 @@ class MomentumSpectrumPolar(object):
 
 
     def plot_under_linear_polarized_list(self, fig=None, ax=None, log_scale=False,
-        vmin=None, vmax=None, xmin=None, xmax=None, ymin=None, ymax=None, fontsize=None, 
+        vmin=None, vmax=None, xmin=None, xmax=None, ymin=None, ymax=None, 
         cmap='jet', decalcomanie=False, order_of_mag=3):
         ## Check prerequisites
         self.check_and_or_load()
@@ -326,6 +326,9 @@ class MomentumSpectrumPolar(object):
         if (fig is None) and (ax is None):
             fig, ax = plt.subplots()
 
+        ## Font configuration
+        fontsize = 'large'
+
         ## Set axes properties
         if xmin is None: xmin = -1.0 * self.k_values[-1]
         if xmax is None: xmax = self.k_values[-1]
@@ -370,7 +373,7 @@ class MomentumSpectrumPolar(object):
         #         pcm_down = ax.pcolormesh(X_grid,Y_grid,C, norm=colors.Normalize(vmin, vmax), cmap =cmap)
 
 
-        if fontsize is None: fontsize = 20 #fig.get_size_inches().mean() * 2
+#        if fontsize is None: fontsize = 20 #fig.get_size_inches().mean() * 2
 
         cb = fig.colorbar(pcm, ax=ax)
         cb.ax.get_yaxis().labelpad = 20

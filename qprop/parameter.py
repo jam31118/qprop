@@ -132,7 +132,7 @@ class Param_File_List(object):
 
 
 def filter_calc_dir(dir_list, param, criteria, verbose=False, default_value=None):
-    dir_list = Qprop20.get_list_of_calc_homes(dir_list, verbose=verbose)
+    #dir_list = Qprop20.get_list_of_calc_homes(dir_list, verbose=verbose)
     criteria_callable = criteria
     if not callable(criteria):
         assert type(criteria) in [float, str, int]
