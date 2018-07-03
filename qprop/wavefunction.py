@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import sph_harm
 from matplotlib.colors import Normalize, LogNorm
+from matplotlib.axes import Axes
 import pandas as pd
 
 from vis.plot import construct_polar_mesh_for_colormesh
@@ -224,6 +225,47 @@ class Wavefunction(object):
         return fig, ax
 
 
+    def plot_at_constant_phi_coord(self, const_phi=0.0, ax=None, figsize=None,
+            arrayOfThetaValue=[], arrayOfPhiValue=[], **plot_kwargs):
+        
+        ## Check type of Axes object (`ax`) and get or construct `matplotlib.figure.Figure` object
+        fig = None
+        if ax is None: fig, ax = plt.subplots(figsize=figsize)
+        else:
+            assert isinstance(ax, Axes)
+            fig = ax.figure
+        assert fig is not None
+
+        ## Determine the index of `phi` coordinate at which the state function to be plotted
+        const_phi_index = get_index_of_nearest_element(self.grid.phiValues, const_phi)
+
+        ## If the state function hasn't been reconstructed in real space, do it, if possible.
+        if not hasattr(self, 'atRealspace'):
+            try: self.reconstructInRealSpace(
+                    arrayOfThetaValue=arrayOfThetaValue,
+                    arrayOfPhiValue=arrayOfPhiValue)
+            except: raise Exception("Failed to reconstruct statefunction at real (position) space")
+        
+        ## Plot 2D colorplot
+        rho_array = self.grid.getArrayOfRadialValue()
+        X_mesh, Y_mesh = construct_polar_mesh_for_colormesh(rho_array, self.grid.thetaValues)
+        sf_to_be_plotted = self.atRealspace[:,const_phi_index,:]
+        C = np.square(np.abs(sf_to_be_plotted))
+        pcm = ax.pcolormesh(X_mesh, Y_mesh, C, **plot_kwargs)
+        ax.axis('square')
+        rho_max = rho_array[-1]
+        ax.set_xlim(-rho_max, rho_max)
+        ax.set_ylim(0, rho_max)
+        cb = fig.colorbar(pcm, ax=ax)
+
+        # Set labels
+        ax.set_xlabel(r"$x\,\,/\,\,a.u.$")
+        ax.set_ylabel(r"$y\,\,/\,\,a.u.$")
+        cb.set_label(r"$probability\,density\,\,/\,\,a.u.$")
+
+
+        return fig, ax, cb
+        
 
 
 class Timed_Wavefunction(object):

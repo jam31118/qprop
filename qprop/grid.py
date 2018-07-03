@@ -6,10 +6,10 @@ import numpy as np
 ## Define Grid object
 class Grid(object):
     def __init__(self, numOfRadialGrid=None, numOfEllGrid=None, numOfOrbitalGrid=None, 
-            dimension=None):
+            dimension=None, delta_r=None):
 
         self.dimension = None
-        self.delta_r = None
+        if (delta_r is not None): self.delta_r = delta_r
         self.initial_m = None
         if (numOfRadialGrid != None): self.numOfRadialGrid = int(numOfRadialGrid)
         if (numOfEllGrid != None): self.numOfEllGrid = int(numOfEllGrid)
