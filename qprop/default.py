@@ -12,6 +12,7 @@ default_config = {
     'param_file_field_per_entry' : 3,
     'param_file_field_names' : ['name', 'type', 'value'],
     'param_file_comment_character' : '#',
+    'imag-pot-ampl' : 100.0,
 }
 
 def check_param_default_config_consistency():
