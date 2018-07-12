@@ -17,9 +17,6 @@ class Imagpot(object):
 
     def __getitem__(self, rho_index_exp):
         rho_indices = np.arange(self.grid.numOfRadialGrid)[rho_index_exp]
-#        assert int(rho_index) == rho_index
-#        if (rho_index >=self. grid.numOfRadialGrid) or (rho_index < 0):
-#            raise IndexError("Index ({:d}) out of range: {:d}~{:d}".format(rho_index, 0,self. grid.numOfRadialGrid))
         result_array = np.empty_like(rho_indices, dtype=complex)
         nonzero_start_index = self.grid.numOfRadialGrid - self.width_in_num_of_grid_points
         zero_mask = rho_indices < nonzero_start_index
@@ -27,6 +24,4 @@ class Imagpot(object):
         result_array[~zero_mask] = self.ampl * ((rho_indices[~zero_mask] - nonzero_start_index) / self.width_in_num_of_grid_points) ** 16
         result_array *= -1.0j
         return result_array
-#        if (rho_index < nonzero_start_index): return 0.0
-#        else: return self.ampl * ((rho_index - nonzero_start_index) / self.width_in_num_of_grid_points) ** 16
 
