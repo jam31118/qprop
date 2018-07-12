@@ -317,6 +317,14 @@ class Qprop20(Qprop):
         ## Define Momentum polar spectrum
         self.momentum_spectrum_polar = MomentumSpectrumPolar(self)
 
+    def load_imagpot(self):
+        imagpot_filepath = join(self.home, default_config["imagpot-filename"])
+        if not isfile(imagpot_filepath):
+            raise IOError("Could not find {}. Note that loading imagpot array from a file is an `rigged-qprop` extension")
+        imagpot_minus_real = np.fromfile(imagpot_filepath, dtype=float)
+        imagpot_array = -1.0j * imagpot_minus_real
+        return imagpot_array
+
     def _determine_wf_filepath(self, wf_filename=''):
         """Return path of given name of wavefunction data file.
         
