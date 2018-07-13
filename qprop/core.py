@@ -325,6 +325,13 @@ class Qprop20(Qprop):
         imagpot_array = -1.0j * imagpot_minus_real
         return imagpot_array
 
+    def load_scalarpot(self):
+        scalarpot_filepath = join(self.home, default_config["scalarpot-filename"])
+        if not isfile(scalarpot_filepath):
+            raise IOError("Could not find {}. Note that loading scalarpot array from a file is an `rigged-qprop` extension")
+        scalarpot_array = np.fromfile(scalarpot_filepath, dtype=float)
+        return scalarpot_array
+
     def _determine_wf_filepath(self, wf_filename=''):
         """Return path of given name of wavefunction data file.
         

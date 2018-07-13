@@ -13,7 +13,8 @@ default_config = {
     'param_file_field_names' : ['name', 'type', 'value'],
     'param_file_comment_character' : '#',
     'imag-pot-ampl' : 100.0,
-    'imagpot-filename' : 'imagpot.bin'
+    'imagpot-filename' : 'imagpot.bin',
+    'scalarpot-filename' : 'scalarpot.bin',
 }
 
 def check_param_default_config_consistency():
