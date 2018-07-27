@@ -68,7 +68,7 @@ class TSURFF_raw_with_default(TSURFF_raw):
         index_of_R = int(R_tsurff / delta_rho - 0.5)
         R_at_grid_point = (index_of_R + 1) * delta_rho
                 
-        return cls(default_file_path, qprop_obj.grid.numOfEllGrid, R_at_grid_point)
+        return cls(default_file_path, qprop_obj.grid.sizeOf_ell_m_unified_grid(), R_at_grid_point)
     
 
 class TSURFF_psi(TSURFF_raw_with_default):
