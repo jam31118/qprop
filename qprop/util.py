@@ -26,3 +26,6 @@ def get_index_of_nearest_element(array, value, threshold = 1e-3):
 
     return nearest_index
 
+
+def is_iterable(obj): return hasattr(obj, "__iter__")
+

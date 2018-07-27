@@ -15,6 +15,7 @@ default_config = {
     'imag-pot-ampl' : 100.0,
     'imagpot-filename' : 'imagpot.bin',
     'scalarpot-filename' : 'scalarpot.bin',
+    'parameter_file_extension' : 'param',
 }
 
 def check_param_default_config_consistency():

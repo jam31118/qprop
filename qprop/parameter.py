@@ -3,9 +3,11 @@ import re
 from re import match
 from os import listdir
 from os.path import isdir, isfile, join, basename
+from numbers import Number
 
 from .core import Qprop20
 from .default import default_config, type2castFunction
+from .util import is_iterable
 
 
 class Param(object):
@@ -52,10 +54,11 @@ class Param(object):
         return is_same
 
 
-
 class Param_File(object):
     def __init__(self, param_objects, param_file_path):
         self.param_objects = param_objects
+        ## NOTE, since there may be multiple parameter with same name, .. the parameter name shouldn't be gathered in a list without specifying each parameter filename
+#        self.param_names = self.get_param_names_from_param_objects(self.param_objects)
         self.file_path = param_file_path
         
     @classmethod
@@ -69,6 +72,15 @@ class Param_File(object):
                     param_objects.append(Param.from_param_entry(line, file_name))
         return cls(param_objects, param_file_path)
     
+#    @staticmethod
+#    def get_param_names_from_param_objects(param_objects):
+#        assert is_iterable(param_objects)
+#        names = []
+#        for param_object in param_objects:
+#            assert isinstance(param_object, Param) and hasattr(param_object, "name")
+#            names.append(param_object.name)
+#        return names
+
     @staticmethod
     def is_proper_param_entry(entry_string):
         assert type(entry_string) is str
@@ -89,11 +101,76 @@ class Param_File(object):
         elif len(matched_param_obj) == 1:
             return matched_param_obj[0].value
     
-    def __getitem__(self, param_name):
-        pass
+    @staticmethod
+    def get_value_from_param_objects(param_objects, param_name, param_file_name):
+        match_params = [param for param in param_objects if param.name == param_name]
+        num_of_matched_param = len(match_params)
+        assert type(param_file_name) is str
+
+        ## Find the unique mathced param object if possible
+        match_param = None
+        if num_of_matched_param == 1:
+            match_param, = match_params
+        elif num_of_matched_param > 1:
+            if param_file_name == '':
+                err_mesg = "The parameter file name should be specified " \
+                        + "since the parameter with name '{}' seems to exist in multiple parameter files"
+                raise Exception(err_mesg.format(param_name))
+            param_with_matched_file_name = [param for param in match_params 
+                    if param.file_name == basename(param_file_name)]
+            if len(param_with_matched_file_name) == 0:
+                err_mesg = "The parameter with name '{}' in file name '{}', " \
+                        + "doesn't seem to exist."
+                raise ValueError(err_mesg.format(param_name, param_file_name))
+            elif len(param_with_matched_file_name) > 1:
+                err_mesg = "The parameter could not be identified uniquely " \
+                        + "for param_name: '{}' and param_file_name: '{}'. " \
+                        + "The `param_with_matched_file_name`: '{}'"
+                raise ValueError(err_mesg.format(param_name, param_file_name, param_with_matched_file_name))
+            match_param, = param_with_matched_file_name
+        elif num_of_matched_param == 0:
+            err_mesg = "No matched parameter object for given param_name: {}"
+            raise ValueError(err_mesg.format(param_name))
+        else:
+            err_mesg = "Unexpected number of `matched_param`: {} / The `match_params: {}`"
+            raise Exception(err_mesg.format(num_of_matched_param, match_params))
+
+        assert match_param is not None
+        return match_param.value
+
+    def __getitem__(self, query_string):
+        param_name, param_file_name = self.parse_param_query_string(query_string)
+        if (param_file_name is not '') and (param_file_name != basename(self.file_path)):
+            err_mesg = "The corresponding parameter file name '{}' in the given query_string '{}' " \
+                    + "doesn't match with this parameter file name '{}'"
+            raise ValueError(err_mesg.format(param_file_name, query_string, basename(self.file_path)))
+        return self.get_value_from_param_objects(self.param_objects, param_name, param_file_name)
     
     def __repr__(self):
         return "<Param_File @ {}>".format(self.file_path)
+
+    def __contains__(self, item):
+        try: self[item]
+        except: return False
+        return True
+
+    @staticmethod
+    def parse_param_query_string(query_string):
+        assert type(query_string) is str
+        sep = ':'
+        splited = query_string.split(sep)
+        param_name, param_file_name = None, None
+        if len(splited) == 1:
+            ## no colon in query_string, thus it is purely param_name
+            param_name = query_string
+            param_file_name = ''
+        elif len(splited) == 2:
+            param_name, param_file_name = splited
+        else:
+            err_mesg = "Could not parse `query_string` ({}) into param_name (possibly followed by param_file_name)"
+            raise ValueError(err_mesg.format(query_string))
+        assert (param_name is not None) and (param_file_name is not None)
+        return param_name, param_file_name
 
 
 class Param_File_List(object):
@@ -129,6 +206,45 @@ class Param_File_List(object):
     
     def __getitem__(self, index):
         return self.param_file_objects[index]
+
+    def get_value(self, query_string):
+        param_name, param_file_name = Param_File.parse_param_query_string(query_string)
+        param_objects = []
+        for param_file in self.param_file_objects: param_objects += param_file.param_objects
+        return Param_File.get_value_from_param_objects(param_objects, param_name, param_file_name)
+
+    def __contains__(self, query_string):
+        try: self.get_value(query_string)
+        except: return False
+        return True
+
+
+
+def given_calc_dir_satisfies_param_conditions(calc_dir_path, param_conditions, verbose=False):
+    eligible = True
+    
+    param_file_list = Param_File_List.from_dir(calc_dir_path)
+    for param_query_string in param_conditions.keys():
+        value_in_file = None
+        try: value_in_file = param_file_list.get_value(param_query_string)
+        except: eligible &= False
+        
+        param_condition = param_conditions[param_query_string]
+        param_condition_callable = None
+        if isinstance(param_condition, Number):
+            param_condition_callable = lambda x: x == param_condition
+        elif callable(param_condition):
+            param_condition_callable = param_condition
+        
+        if param_condition_callable(value_in_file) is False:
+            if verbose:
+                log_mesg = "The given directory '{}' doesn't satisfy param_query_string: '{}' " \
+                + "where param_condition is '{}' and the parameter value from file is '{}'"
+                print(log_mesg.format(calc_dir_path, param_query_string, param_condition, value_in_file))
+            eligible &= False
+    
+    return eligible
+
 
 
 def filter_calc_dir(dir_list, param, criteria, verbose=False, default_value=None):

@@ -929,15 +929,17 @@ class Qprop20(Qprop):
         return has_files_with_extensions(calc_home_path, [".raw", ".dat"])
 
     @classmethod
-    def seems_to_be_a_calc_home(cls, calc_home_path):
+    def seems_to_be_a_calc_home(cls, calc_home_path, check_data_files=False):
         #return cls.has_complete_param_files(calc_home_path) and cls.has_raw_dat_etc(calc_home_path)
         #return cls.has_complete_param_files(calc_home_path) #and cls.has_files_with_extensions(calc_home_path, required_extensions=[".raw"])
         calc_data_file_extensions = default_config['calc_data_file_extensions']
         has_at_least_one_data_file = cls.has_files_with_extensions(calc_home_path, calc_data_file_extensions, mode='OR')
-        return cls.has_complete_param_files(calc_home_path) and has_at_least_one_data_file
+        it_seems_calc_home = cls.has_complete_param_files(calc_home_path)
+        if check_data_files: it_seems_calc_home &= has_at_least_one_data_file
+        return it_seems_calc_home
 
     @classmethod
-    def get_list_of_calc_homes(cls, dir_path_in, verbose=False):
+    def get_list_of_calc_homes(cls, dir_path_in, check_data_files=False, verbose=False):
         """
         Return a list of calculation home directory path
 
@@ -961,7 +963,7 @@ class Qprop20(Qprop):
             for sub_content in sub_contents:
                 sub_content_path = os.path.join(dir_path,sub_content)
                 if os.path.isdir(sub_content_path):
-                    if cls.seems_to_be_a_calc_home(sub_content_path):
+                    if cls.seems_to_be_a_calc_home(sub_content_path, check_data_files=check_data_files):
                         subdir_list.append(sub_content_path)
                     else:
                         if verbose: print("'%s' doesn't seem to be a calculation home" % (sub_content_path))
