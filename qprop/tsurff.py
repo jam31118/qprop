@@ -48,6 +48,10 @@ class TSURFF_raw(object):
     def __getitem__(self, n):
         return self.get_ell_m_array_at_n_th_time_step(n)
 
+    def load(self):
+        _num_of_element_to_read = self.num_of_ell_m_grid * self.num_of_time_step
+        return np.fromfile(self.data_file_path, dtype=self.dtype, count=_num_of_element_to_read)
+
     
 class TSURFF_raw_with_default(TSURFF_raw):
     default_file_name = ""

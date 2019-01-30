@@ -53,8 +53,49 @@ class Probability_Flux_at_R(Probability_Flux):
             self.tsurff_psi[idx], self.tsurff_dpsidr[idx], self.R_at_grid_point
         )
         return rate
-    
+
+    def get_probabilty_dissipation_rate_at_once(self):
+        _dissipation_rate_per_lm = self.get_probabilty_dissipation_rate_per_lm_at_once()
+        assert _dissipation_rate_per_lm.shape == (self.num_of_time_step, self.num_of_ell_m_grid)
+        _dissipation_rate_arr = np.sum(_dissipation_rate_per_lm, axis=1)
+        return _dissipation_rate_arr
+
+    def get_probabilty_dissipation_rate_per_lm_at_once(self):
+        _2d_shape = (self.num_of_time_step, self.num_of_ell_m_grid)
+
+        _tsurff_psi_arr_1d = self.tsurff_psi.load()
+        _tsurff_psi_arr_2d = _tsurff_psi_arr_1d.reshape(*_2d_shape)
+
+        _tsurff_dpsidr_arr_1d = self.tsurff_dpsidr.load()
+        _tsurff_dpsidr_arr_2d = _tsurff_dpsidr_arr_1d.reshape(*_2d_shape)
+        
+        _dissipation_rate_per_lm = ( _tsurff_psi_arr_2d.conj() * ( - _tsurff_psi_arr_2d + self.R_at_grid_point * _tsurff_dpsidr_arr_2d ) ).imag
+        _dissipation_rate_per_lm *= pow(self.R_at_grid_point, -3)
+
+        return _dissipation_rate_per_lm
+        
     def __getitem__(self, time_step_index_exp):
         time_step_index_array = np.arange(self.num_of_time_step, dtype=int)[time_step_index_exp]
         return self.get_probabilty_dissipation_rate_vectorized(time_step_index_array)
+
+    def plot(self, ax, num_of_color_range_order=17, data=None):
+        from numbers import Integral
+        from matplotlib.axes import Axes
+        assert isinstance(num_of_color_range_order, Integral) and num_of_color_range_order > 0
+        assert isinstance(ax, Axes)
+
+        from matplotlib.colors import LogNorm
+
+        _dissip_rate_lm_arr = data
+        if _dissip_rate_lm_arr is None:
+            _dissip_rate_lm_arr = self.get_probabilty_dissipation_rate_per_lm_at_once()
+        _vmax = _dissip_rate_lm_arr.max()
+        _vmin = _vmax * pow(10,-num_of_color_range_order)
+        im = ax.imshow(_dissip_rate_lm_arr, norm=LogNorm(), vmin=_vmin, vmax=_vmax, cmap='jet', aspect='auto')
+        cb = ax.figure.colorbar(im, ax=ax)
+        cb.set_label("amplitude")
+        ax.set_xlabel("ell-m-index")
+        ax.set_ylabel("time-index")
+
+        return im
 
