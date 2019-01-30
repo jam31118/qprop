@@ -939,7 +939,7 @@ class Qprop20(Qprop):
         return it_seems_calc_home
 
     @classmethod
-    def get_list_of_calc_homes(cls, dir_path_in, check_data_files=False, verbose=False):
+    def get_list_of_calc_homes(cls, dir_path_in, check_data_files=False, verbose=False, param_conditions={}):
         """
         Return a list of calculation home directory path
 
@@ -953,6 +953,9 @@ class Qprop20(Qprop):
             for dir_path in dir_path_in:
                 assert type(dir_path) is str
             dir_list = dir_path_in
+        # Process `param_conditions`
+        if not isinstance(param_conditions, dict):
+            raise TypeError("`param_conditions` should be of type `{}`".format(dict))
 
         ## Construct a list of calculation directories
         subdir_list = []
@@ -969,6 +972,18 @@ class Qprop20(Qprop):
                         if verbose: print("'%s' doesn't seem to be a calculation home" % (sub_content_path))
                 else:
                     if verbose: print("'%s' doesn't seem to be a directory" % (sub_content_path))
+
+        from .parameter import given_calc_dir_satisfies_param_conditions
+        
+        param_matched_calc_paths = [calc_dir_path for calc_dir_path in subdir_list 
+                            if given_calc_dir_satisfies_param_conditions(calc_dir_path, param_conditions, verbose=verbose)]
+
+        if verbose:
+            log_mesg = "[ LOG ] '{}' out of '{}' calculation paths have been filtered " \
+                    + "out due to mismatches with the given parameter conditions: {}"
+            print(log_mesg.format(len(subdir_list) - len(param_matched_calc_paths), len(subdir_list), param_conditions))
+
+        subdir_list = param_matched_calc_paths
 
         return subdir_list
 
