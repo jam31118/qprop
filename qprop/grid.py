@@ -27,12 +27,16 @@ class Grid(object):
         self.dimension = int(dimension)
 
     def sizeOf_ell_m_unified_grid(self):
-        if (self.dimension == 44):
-            return self.numOfEllGrid * self.numOfEllGrid
-        elif (self.dimension == 34):
-            return self.numOfEllGrid
-        else:
-            raise IOError("Unknown qprop dimension")
+        return self.get_num_of_phi_lm(self.dimension, self.numOfEllGrid)
+
+    @staticmethod
+    def get_num_of_phi_lm(qprop_dimension, N_l):
+        num_of_phi_lm = None
+        if (qprop_dimension == 44): num_of_phi_lm = N_l * N_l
+        elif (qprop_dimension == 34): num_of_phi_lm = N_l
+        else: raise ValueError("Unknown qprop dimension")
+        if num_of_phi_lm is None: raise Exception("Unexpected error during evaluating `num_of_phi_lm`")
+        return num_of_phi_lm
 
     def printNumOfGridPoints(self):
         print("numOfRadialGrid: ", self.numOfRadialGrid)
@@ -75,11 +79,21 @@ class Grid(object):
         return valid_lm_mask
 
     def get_l_m_iterator(self):
-        if self.dimension == 34:
-            assert self.initial_m is not None
-            return ((l,self.initial_m) for l in range(self.numOfEllGrid))
-        elif self.dimension == 44:
-            return ((l,m) for l in range(self.numOfEllGrid) for m in range(-l,l+1))
+        return self.get_l_m_iterator_static(self.dimension, self.numOfEllGrid, self.initial_m)
+
+    @staticmethod
+    def get_l_m_iterator_static(dimension, N_l, initial_m=None):
+        if dimension == 34:
+            assert initial_m is not None
+            return ((l,initial_m) for l in range(N_l))
+        elif dimension == 44:
+            return ((l,m) for l in range(N_l) for m in range(-l,l+1))
+
+    @staticmethod
+    def get_l_m_array(dimension, N_l, initial_m=None):
+        _l_m_iter = Grid.get_l_m_iterator_static(dimension, N_l, initial_m=initial_m)
+        _l_m_arr = np.array(list(_l_m_iter), dtype=int)
+        return _l_m_arr
 
     def size(self):
         if (self.dimension == 44):
