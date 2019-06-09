@@ -603,6 +603,13 @@ class MomentumSpectrumPolar(object):
         return new_obj
 
 
+    def get_reduced_k_arr_for_pz_average(self, z0):
+        if not self.haveReadPolarSpectrum: self.readPolarSpectrumData(self.q)
+        _max_k = np.sqrt(self.k_values[-1]**2 - z0**2)
+        _reduced_k_arr = self.k_values[self.k_values < _max_k]
+        return _reduced_k_arr
+
+
     def evaluate_pz_averaged_map(self, z0):
         """
         Evaluate the momentum map, averaged along pz
@@ -616,14 +623,15 @@ class MomentumSpectrumPolar(object):
         from scipy.interpolate import RegularGridInterpolator
         _P_func_interp = RegularGridInterpolator((self.k_values, self.theta_values, self.phi_values), self.kProbGrid)
         
-        _max_k = np.sqrt(self.k_values[-1]**2 - z0**2)
-        _reduced_k_arr = self.k_values[self.k_values < _max_k]
+#        _max_k = np.sqrt(self.k_values[-1]**2 - z0**2)
+#        _reduced_k_arr = self.k_values[self.k_values < _max_k]
+        _reduced_k_arr = self.get_reduced_k_arr_for_pz_average(z0)
         _reduced_K_arr, _Phi_arr = np.meshgrid(_reduced_k_arr, self.phi_values)
         
         from tdse.coordinate import P_bar_vec
         _P_bar_arr = P_bar_vec(_reduced_K_arr, _Phi_arr, _P_func_interp, z0=z0)	
         
-        return _P_bar_arr, _reduced_k_arr, self.phi_values
+        return _P_bar_arr 
 
 
     @staticmethod
