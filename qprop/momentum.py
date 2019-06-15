@@ -624,10 +624,7 @@ class MomentumSpectrumPolar(object):
         - `z0` : the range of average for momentum in the direction of z
         """
 
-#, return_grid=None
-
         self.check_and_or_load()
-#        if not self.haveReadPolarSpectrum: self.readPolarSpectrumData(self.q)
         
         from scipy.interpolate import RegularGridInterpolator
         _P_func_interp = RegularGridInterpolator((self.k_values, self.theta_values, self.phi_values), self.kProbGrid)
@@ -637,21 +634,6 @@ class MomentumSpectrumPolar(object):
         
         from tdse.coordinate import P_bar_vec
         _P_bar_arr = P_bar_vec(_reduced_K_arr, _Phi_arr, _P_func_interp, z0=z0)	
-        
-#        if return_grid is not None:
-#
-#            assert type(return_grid) is str
-#            grid_coord_lowercase = return_grid.lower()
-#            assert grid_coord_lowercase in ('cart', 'polar')
-#
-#            _coord_1_grid, _coord_2_grid = _reduced_K_arr, _Phi_arr
-#            if grid_coord_lowercase == 'cart':
-#                _coord_1_grid = _reduced_K_arr * np.cos(_Phi_arr)
-#                _coord_2_grid = _reduced_K_arr * np.sin(_Phi_arr)
-#            elif grid_coord_lowercase == 'polar': pass
-#            else: raise Exception("Unexpected input grid coordinate `return_coord`: {}".format(grid_coord_lowercase))
-#
-#            return _P_bar_arr, (_coord_1_grid, _coord_2_grid)
 
         return _P_bar_arr 
 
