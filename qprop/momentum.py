@@ -604,11 +604,17 @@ class MomentumSpectrumPolar(object):
 
 
     def get_reduced_k_arr_for_pz_average(self, z0):
-        if not self.haveReadPolarSpectrum: self.readPolarSpectrumData(self.q)
+#        if not self.haveReadPolarSpectrum: self.readPolarSpectrumData(self.q)
+        self.check_and_or_load()
         _max_k = np.sqrt(self.k_values[-1]**2 - z0**2)
         _reduced_k_arr = self.k_values[self.k_values < _max_k]
         return _reduced_k_arr
 
+    def get_pcolor_grid_for_pz_average_map(self, z0):
+        self.check_and_or_load()
+        _reduced_k_arr = self.get_reduced_k_arr_for_pz_average(z0)
+        return self.construct_polar_pcolor_grid_arr(_reduced_k_arr, self.phi_values)
+        
 
     def evaluate_pz_averaged_map(self, z0):
         """
@@ -618,19 +624,35 @@ class MomentumSpectrumPolar(object):
         - `z0` : the range of average for momentum in the direction of z
         """
 
-        if not self.haveReadPolarSpectrum: self.readPolarSpectrumData(self.q)
+#, return_grid=None
+
+        self.check_and_or_load()
+#        if not self.haveReadPolarSpectrum: self.readPolarSpectrumData(self.q)
         
         from scipy.interpolate import RegularGridInterpolator
         _P_func_interp = RegularGridInterpolator((self.k_values, self.theta_values, self.phi_values), self.kProbGrid)
         
-#        _max_k = np.sqrt(self.k_values[-1]**2 - z0**2)
-#        _reduced_k_arr = self.k_values[self.k_values < _max_k]
         _reduced_k_arr = self.get_reduced_k_arr_for_pz_average(z0)
-        _reduced_K_arr, _Phi_arr = np.meshgrid(_reduced_k_arr, self.phi_values)
+        _reduced_K_arr, _Phi_arr = np.meshgrid(_reduced_k_arr, self.phi_values, indexing='ij')
         
         from tdse.coordinate import P_bar_vec
         _P_bar_arr = P_bar_vec(_reduced_K_arr, _Phi_arr, _P_func_interp, z0=z0)	
         
+#        if return_grid is not None:
+#
+#            assert type(return_grid) is str
+#            grid_coord_lowercase = return_grid.lower()
+#            assert grid_coord_lowercase in ('cart', 'polar')
+#
+#            _coord_1_grid, _coord_2_grid = _reduced_K_arr, _Phi_arr
+#            if grid_coord_lowercase == 'cart':
+#                _coord_1_grid = _reduced_K_arr * np.cos(_Phi_arr)
+#                _coord_2_grid = _reduced_K_arr * np.sin(_Phi_arr)
+#            elif grid_coord_lowercase == 'polar': pass
+#            else: raise Exception("Unexpected input grid coordinate `return_coord`: {}".format(grid_coord_lowercase))
+#
+#            return _P_bar_arr, (_coord_1_grid, _coord_2_grid)
+
         return _P_bar_arr 
 
 
@@ -657,11 +679,21 @@ class MomentumSpectrumPolar(object):
         _phi_grid_arr[:-1] = phi_arr - 0.5 * _delta_phi
         _phi_grid_arr[-1] = phi_arr[-1] + 0.5 * _delta_phi
         
-        _K_grid_arr, _Phi_grid_arr = np.meshgrid(_k_grid_arr, _phi_grid_arr)
+        _K_grid_arr, _Phi_grid_arr = np.meshgrid(_k_grid_arr, _phi_grid_arr, indexing='ij')
         _X_grid_arr = _K_grid_arr * np.cos(_Phi_grid_arr)
         _Y_grid_arr = _K_grid_arr * np.sin(_Phi_grid_arr)
 
         return _X_grid_arr, _Y_grid_arr
 
+    def get_my_pcolor_grid_arrays(self):
+        self.check_and_or_load()
+        return self.construct_polar_pcolor_grid_arr(self.k_values, self.phi_values)
+
+
+    def get_prob_arr_at_polarization_plane(self):
+        self.check_and_or_load()
+        _half_pi_theta_index = self.theta_values.size // 2
+        _prob_arr_at_pol_plane = self.kProbGrid[:,_half_pi_theta_index,:]
+        return _prob_arr_at_pol_plane
 
 
