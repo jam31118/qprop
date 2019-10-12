@@ -113,7 +113,7 @@ class Winop(object):
         _k_grid_arr = np.empty((self.k_arr.size + 1,), dtype=float)
         _k_grid_arr[1:-1] = 0.5 * (self.k_arr[1:] + self.k_arr[:-1])
         _k_grid_arr[0] = 0.0
-        _k_grid_arr[-1] = self.k_arr[-1]
+        _k_grid_arr[-1] = self.k_arr[-1] + 0.5 * (self.k_arr[-1] - self.k_arr[-2])
         return _k_grid_arr
     
     
