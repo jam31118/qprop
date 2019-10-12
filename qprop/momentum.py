@@ -667,9 +667,40 @@ class MomentumSpectrumPolar(object):
 
         return _X_grid_arr, _Y_grid_arr
 
+
+
+    @staticmethod
+    def construct_polar_pcolor_grid_arr_linear(k_arr, theta_arr):
+
+        assert k_arr[0] == 0.0
+
+        _k_grid_arr = np.empty((k_arr.size + 1,), dtype=float)
+        _k_grid_arr[0] = 0.0
+        _k_grid_arr[1:-1] = 0.5 * (k_arr[:-1] + k_arr[1:])
+        _k_grid_arr[-1] = k_arr[-1] + 0.5 * (k_arr[-1] - k_arr[-2])
+        
+        _theta_grid_arr = np.empty((theta_arr.size + 1,), dtype=float)
+        _delta_theta = theta_arr[1] - theta_arr[0]
+#        _theta_grid_arr[0] = theta_arr[0] - 0.5 * (theta_arr[1] - theta_arr[0])
+        _theta_grid_arr[0] = 0.0
+#        _theta_grid_arr[-1] = theta_arr[-1] + 0.5 * (theta_arr[-1] - theta_arr[-2])
+        _theta_grid_arr[-1] = np.pi
+        _theta_grid_arr[1:-1] = 0.5 * (theta_arr[1:] + theta_arr[:-1])
+        
+        _K_grid_arr, _Theta_grid_arr = np.meshgrid(_k_grid_arr, _theta_grid_arr, indexing='ij')
+        _X_grid_arr = _K_grid_arr * np.cos(_Theta_grid_arr)
+        _Y_grid_arr = _K_grid_arr * np.sin(_Theta_grid_arr)
+
+        return _X_grid_arr, _Y_grid_arr
+
+
     def get_my_pcolor_grid_arrays(self):
         self.check_and_or_load()
         return self.construct_polar_pcolor_grid_arr(self.k_values, self.phi_values)
+
+    def get_my_pcolor_grid_arrays_linear(self):
+        self.check_and_or_load()
+        return self.construct_polar_pcolor_grid_arr_linear(self.k_values, self.theta_values)
 
 
     def get_prob_arr_at_polarization_plane(self):
