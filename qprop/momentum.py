@@ -602,3 +602,80 @@ class MomentumSpectrumPolar(object):
 
         return new_obj
 
+
+    def get_reduced_k_arr_for_pz_average(self, z0):
+#        if not self.haveReadPolarSpectrum: self.readPolarSpectrumData(self.q)
+        self.check_and_or_load()
+        _max_k = np.sqrt(self.k_values[-1]**2 - z0**2)
+        _reduced_k_arr = self.k_values[self.k_values < _max_k]
+        return _reduced_k_arr
+
+    def get_pcolor_grid_for_pz_average_map(self, z0):
+        self.check_and_or_load()
+        _reduced_k_arr = self.get_reduced_k_arr_for_pz_average(z0)
+        return self.construct_polar_pcolor_grid_arr(_reduced_k_arr, self.phi_values)
+        
+
+    def evaluate_pz_averaged_map(self, z0):
+        """
+        Evaluate the momentum map, averaged along pz
+
+        # Argument
+        - `z0` : the range of average for momentum in the direction of z
+        """
+
+        self.check_and_or_load()
+        
+        from scipy.interpolate import RegularGridInterpolator
+        _P_func_interp = RegularGridInterpolator((self.k_values, self.theta_values, self.phi_values), self.kProbGrid)
+        
+        _reduced_k_arr = self.get_reduced_k_arr_for_pz_average(z0)
+        _reduced_K_arr, _Phi_arr = np.meshgrid(_reduced_k_arr, self.phi_values, indexing='ij')
+        
+        from tdse.coordinate import P_bar_vec
+        _P_bar_arr = P_bar_vec(_reduced_K_arr, _Phi_arr, _P_func_interp, z0=z0)	
+
+        return _P_bar_arr 
+
+
+    @staticmethod
+    def is_the_proper_phi_arr(phi_arr):
+        _is_equidistanced = np.std(np.diff(phi_arr)) < 1e-14
+        _start_from_zero = phi_arr[0] == 0
+        _is_periodic = np.abs(phi_arr[-1] + phi_arr[1] - 2.0*np.pi) < 1e-14
+        return _is_equidistanced and _start_from_zero and _is_periodic
+
+    @staticmethod
+    def construct_polar_pcolor_grid_arr(k_arr, phi_arr):
+
+        assert k_arr[0] == 0.0
+        assert MomentumSpectrumPolar.is_the_proper_phi_arr(phi_arr)
+
+        _k_grid_arr = np.empty((k_arr.size + 1,), dtype=float)
+        _k_grid_arr[0] = 0.0
+        _k_grid_arr[1:-1] = 0.5 * (k_arr[:-1] + k_arr[1:])
+        _k_grid_arr[-1] = k_arr[-1] + 0.5 * (k_arr[-1] - k_arr[-2])
+        
+        _phi_grid_arr = np.empty((phi_arr.size + 1,), dtype=float)
+        _delta_phi = phi_arr[1] - phi_arr[0]
+        _phi_grid_arr[:-1] = phi_arr - 0.5 * _delta_phi
+        _phi_grid_arr[-1] = phi_arr[-1] + 0.5 * _delta_phi
+        
+        _K_grid_arr, _Phi_grid_arr = np.meshgrid(_k_grid_arr, _phi_grid_arr, indexing='ij')
+        _X_grid_arr = _K_grid_arr * np.cos(_Phi_grid_arr)
+        _Y_grid_arr = _K_grid_arr * np.sin(_Phi_grid_arr)
+
+        return _X_grid_arr, _Y_grid_arr
+
+    def get_my_pcolor_grid_arrays(self):
+        self.check_and_or_load()
+        return self.construct_polar_pcolor_grid_arr(self.k_values, self.phi_values)
+
+
+    def get_prob_arr_at_polarization_plane(self):
+        self.check_and_or_load()
+        _half_pi_theta_index = self.theta_values.size // 2
+        _prob_arr_at_pol_plane = self.kProbGrid[:,_half_pi_theta_index,:]
+        return _prob_arr_at_pol_plane
+
+
