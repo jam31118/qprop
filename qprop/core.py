@@ -107,6 +107,8 @@ class Qprop(object):
 # .. e.g. for QPROP ver 1.7, the class name would be qprop17
 class Qprop20(Qprop):
 
+    dimension_list = [34, 44]
+
     def __init__(self, paramFileDir='.', home=None, guess_line_num_of_wf_file=False,
         vecpot_filename='', wf_filename=''):
         """
