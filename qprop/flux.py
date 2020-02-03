@@ -98,4 +98,8 @@ class Probability_Flux_at_R(Probability_Flux):
         ax.set_ylabel("time-index")
 
         return im
+    
+    def evaluate_dissipated_norm():
+        _dissipated_norm = np.trapz(prob_dissip_rate_t, dx=q.propagateParam['delta-t'])
+        return _dissipated_norm
 
