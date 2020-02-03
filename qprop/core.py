@@ -879,20 +879,21 @@ class Qprop20(Qprop):
     def has_complete_param_files(calc_home_path):
         assert os.path.isdir(calc_home_path)
         common_param_files = ["initial.param","propagate.param"]
-        xor_param_files = ["tsurff.param","winop.param"]
+        or_param_files = ["tsurff.param","winop.param"]
         home_contents = os.listdir(calc_home_path)
         num_of_common_param_files = 0
         for common_param_file in common_param_files:
             if common_param_file in home_contents:
                 num_of_common_param_files += 1
-        num_of_xor_param_files = 0
-        for xor_param_file in xor_param_files:
-            if xor_param_file in home_contents:
-                num_of_xor_param_files += 1
+        num_of_or_param_files = 0
+        for or_param_file in or_param_files:
+            if or_param_file in home_contents:
+                num_of_or_param_files += 1
 
         all_common_files_exists = num_of_common_param_files == len(common_param_files)
-        only_one_xor_file_exist = num_of_xor_param_files == 1
-        complete_set_of_param_files_exist = all_common_files_exists and only_one_xor_file_exist
+#        only_one_or_file_exist = num_of_or_param_files == 1
+        complete_set_of_param_files_exist = all_common_files_exists and (num_of_or_param_files >= 1)
+#        complete_set_of_param_files_exist = all_common_files_exists and only_one_xor_file_exist
         return complete_set_of_param_files_exist
 
 
