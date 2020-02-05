@@ -55,7 +55,7 @@ class ParameterFile(Parameter):
         _name, _type, _old_value = self._array[_index]
         
         #### Update text
-        _pattern = r"({}\s+{}\s+)(\w)".format(_name, _type)
+        _pattern = r"({}\s+{}\s+)(.+)".format(_name, _type)
         self._text = sub(_pattern, r"\1{}", self._text).format(value)
         
         #### Update array
