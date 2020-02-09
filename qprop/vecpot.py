@@ -382,6 +382,48 @@ class Param_to_Vecpot(object):
         return vp
     
 
+
+import re
+
+tail_pattern_in_new_form = '-([xyz])-([0-9]+)'
+
+
+class ParameterList2Vecpot(object):
+    
+    mandatory_keys_in_old_form = ['max-electric-field','omega','num-cycles']
+    
+    mandatory_keys_in_new_form = [name + tail_pattern_in_new_form
+                                  for name in mandatory_keys_in_old_form]
+    
+    def __init__(self):
+        pass
+#             optional_keys_in_new_form = [name+tail_pattern for name in ['phase-pi','start-time']]
+    
+    @staticmethod
+    def is_valid_param_list(param_list):
+        return hasattr(param_list, 'keys') and callable(getattr(param_list, 'keys'))
+    
+    @classmethod
+    def has_new_param_form(cls, param_list):
+        assert cls.is_valid_param_list(param_list)
+        _has_new_form = any([re.match(_pattern, _key) 
+                             for _pattern in cls.mandatory_keys_in_new_form 
+                             for _key in param_list.keys()])
+        return _has_new_form
+
+    @classmethod
+    def has_old_param_form(cls, param_list):
+        assert cls.is_valid_param_list(param_list)
+        _has_old_form = any([_pattern == _key 
+                             for _pattern in cls.mandatory_keys_in_old_form 
+                             for _key in param_list.keys()])
+        return _has_old_form
+
+
+
+
+
+
 #
 #class Vecpot(object):
 #    def __init__(self, qprop_dim, home_dir, omega, numOfCycle, E_max, phi_cep,
