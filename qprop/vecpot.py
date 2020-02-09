@@ -159,6 +159,24 @@ class Loaded_Vecpot(Vecpot):
 class Single_Vecpot(Vecpot):
     def __init__(self, omega, num_cycles, E0, phase, direction, 
             start_time=0.0, shape='sin-square'):
+        """
+        
+        Parameters
+        ----------
+        omega : float
+            angular frequency in atomic unit
+        num_cycles : int
+            number of cycles        
+        E0 : float
+            max amplitude electric field along the given direction, 
+            in atomic unit.
+        phase : float
+            offset phase of the carrier wave
+        direction : one of 'x', 'y', 'z'
+            oscillating direction of the vector potential
+        start_time : float
+            starting time at which the vector potential began to be non-zero
+        """
 
         ## Check input arguments
         for arg in [omega, num_cycles, E0, phase, start_time]:
@@ -183,6 +201,7 @@ class Single_Vecpot(Vecpot):
         self.end_time = self.get_end_time()
         self.shape = shape.lower()
         self.direction = direction.lower()
+        self.period = 2.0 * pi / omega
     
     def get_duration(self):
         return self.num_cycles * 2 * pi / self.omega
@@ -195,8 +214,8 @@ class Single_Vecpot(Vecpot):
     
     def __call__(self, t):
         ww = self.omega / (2.0 * self.num_cycles)
-        carrier = np.sin(self.omega * t + self.phase)
-        envelope = self.E0 / self.omega * np.square(np.sin(ww * t))
+        carrier = np.sin(self.omega * (t-self.start_time) + self.phase)
+        envelope = self.E0/self.omega*np.square(np.sin(ww*(t-self.start_time)))
         vecpot_value = envelope * carrier
         if isinstance(vecpot_value, np.ndarray):
             out_of_pulse_mask = (t < self.start_time) | (self.end_time < t)
@@ -299,17 +318,27 @@ class Param_to_Vecpot(object):
     must_have_if_original = [
             'omega', 'num-cycles', 'max-electric-field' ]
     optional_if_original = ['phase-pi', 'start_time']
+    # [TODO] this default should be put into default in qprop.default
     default_for_optional = {
             'phase-pi':0.0, 'start_time':0.0}
 
     ## Settings for new form
     suffix_form = '-{0}-{1}'
 
+
     def __init__(self, param):
-        assert hasattr(param, '__getitem__')
+        """Initialize
+        
+        Parameters
+        ----------
+        param : dict
+            parameter key-value set
+        """
+        if not isinstance(param, dict):
+            raise ValueError("`param` should be of type {}".format(dict))
         self.param = param
 
-#    @classmethod
+
     def param_names_are_in_original_form(self):
     
         ## Check if para object has vector potential
@@ -321,7 +350,7 @@ class Param_to_Vecpot(object):
         
         return param_name_is_in_original_form
     
-#    @classmethod
+
     def param_to_single_vecpot(self):
 
         assert self.param_names_are_in_original_form(self.param)
