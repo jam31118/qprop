@@ -35,24 +35,47 @@ class ParameterFile(Parameter):
         self._lines = self._text.splitlines()
         self._array = self.construct_array(self._lines)
     
-    
-    def update_param(self, name, value):
+
+    def _process_param_name_and_value(self, name, value):
         if not isinstance(name, str): 
             raise ValueError("The `name` should be of type '{}'".format(str))
         try: _value_str = str(value)
         except: raise Exception(
             "Error during converting given value (={}) to string.".format(value))
+        return name, _value_str
+
+
+    def add_param(self, name, value, type):
+
+        assert isinstance(name, str)
+        try: _value_str = str(value)
+        except: raise ValueError("Failed to convert '{}' to string".format(value))
+        assert isinstance(type, str)
         
-        if name not in self._array['name']:
+        if name in self._array(['name']):
+            _msg = "The parameter with name '{}' already exists."
+            raise ValueError(_msg, name)
+
+        ## Add parameter to the file text
+        self._text += "{} {} {}".format(name, type, _value_str)
+
+        ## Add parameter to the array
+        self._array = self.construct_array(self._text.splitlines())
+
+
+    def update_param(self, name, value):
+        _name, _value_str = self._process_param_name_and_value(name, value)
+
+        if _name not in self._array['name']:
             raise ValueError(
                 ("The given name ('{}') doesn't seem to exist "
-                 "in the parameter file").format(name)
+                 "in the parameter file").format(_name)
             )
             
-        _indices, = np.where(self._array['name'] == name)
+        _indices, = np.where(self._array['name'] == _name)
         if _indices.size != 1: raise Exception("Duplicate parameter name")
         _index, = _indices
-        _name, _type, _old_value = self._array[_index]
+        _, _type, _old_value = self._array[_index]
         
         #### Update text
         _pattern = r"({}\s+{}\s+)(.+)".format(_name, _type)
