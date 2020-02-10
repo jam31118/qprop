@@ -263,7 +263,7 @@ class Superposed_Vecpot(Vecpot):
         start_time = self.get_start_time()
         end_time = self.get_end_time()
         assert start_time < end_time
-        return start_time - end_time
+        return end_time - start_time
 
     def __call__(self, t):
         superposed_value = 0.0
