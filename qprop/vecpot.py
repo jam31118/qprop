@@ -1,7 +1,7 @@
 from numbers import Real
 
 import numpy as np
-from numpy import pi
+from numpy import pi, sin, cos
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -230,6 +230,32 @@ class Single_Vecpot(Vecpot):
         assert type(vecpot) is type(self)
         return Superposed_Vecpot([self, vecpot])
 
+    def E(self, t):
+        """Evaluate electric field on velocity gauge
+        
+        Parameters
+        ----------
+        t : float or array-like
+            time point(s) at which the electric field is evaluated
+        """
+
+        try: _t = np.array(t, copy=False)
+        except: raise ValueError("Failed to convert given `t` to an array")
+
+        _nc = self.num_cycles
+        _phi = self.phase
+        _w_t_minus_t0 = self.omega * (_t - self.start_time)
+        
+        ## Evaluate field-present values
+        _E_t = 1.0/_nc * sin(1.0/_nc * _w_t_minus_t0) * sin(_w_t_minus_t0 + _phi)
+        _E_t += ( 1.0 - cos(1.0/_nc * _w_t_minus_t0) ) * cos(_w_t_minus_t0 + _phi)
+        _E_t *= - self.E0 / 2.0
+        
+        ## Set zero where the vector field is zero
+        _zero_field_time_mask = np.logical_or(_t < self.start_time, _t > self.end_time)
+        _E_t[_zero_field_time_mask] = 0.0
+        
+        return _E_t
 
 class Superposed_Vecpot(Vecpot):
     def __init__(self, vecpots):
@@ -270,6 +296,14 @@ class Superposed_Vecpot(Vecpot):
         for vecpot in self.vecpots:
             superposed_value += vecpot(t)
         return superposed_value
+
+    def E(self, t):
+        try: _t = np.array(t, copy=False)
+        except: raise ValueError("Failed to convert the gien `t` to an array")
+        _superposed_E_t = np.zeros_like(_t)
+        for vecpot in self.vecpots: 
+            _superposed_E_t += vecpot.E(_t)
+        return _superposed_E_t
 
     @staticmethod
     def get_directions_from_vecpots(vecpots):
