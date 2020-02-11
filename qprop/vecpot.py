@@ -226,6 +226,17 @@ class Single_Vecpot(Vecpot):
                 vecpot_value = 0.0
         return vecpot_value
 
+    def envolope(self, t):
+        """Evaluate field envolope values"""
+        try: _t = np.array(t, copy=False)
+        except: raise ValueError("Failed to convert given `t` to an array")
+        _ww = self.omega / (2.0 * self.num_cycles)
+        _env = self.E0 / self.omega * np.square( sin(_ww*(_t-self.start_time)) )
+        _mask = np.logical_or(_t < self.start_time, _t > self.end_time)
+        if _mask.ndim > 0: _env[_mask] = 0.0
+        else: _env *= not _mask  # becomes zero if `_mask` is `False`
+        return _env
+
     def __add__(self, vecpot):
         assert type(vecpot) is type(self)
         return Superposed_Vecpot([self, vecpot])
@@ -247,15 +258,18 @@ class Single_Vecpot(Vecpot):
         _w_t_minus_t0 = self.omega * (_t - self.start_time)
         
         ## Evaluate field-present values
-        _E_t = 1.0/_nc * sin(1.0/_nc * _w_t_minus_t0) * sin(_w_t_minus_t0 + _phi)
-        _E_t += ( 1.0 - cos(1.0/_nc * _w_t_minus_t0) ) * cos(_w_t_minus_t0 + _phi)
+        _E_t = 1.0/_nc * sin(1.0/_nc *_w_t_minus_t0) * sin(_w_t_minus_t0 +_phi)
+        _E_t += ( 1.0 - cos(1.0/_nc *_w_t_minus_t0) ) * cos(_w_t_minus_t0 +_phi)
         _E_t *= - self.E0 / 2.0
         
         ## Set zero where the vector field is zero
-        _zero_field_time_mask = np.logical_or(_t < self.start_time, _t > self.end_time)
-        _E_t[_zero_field_time_mask] = 0.0
+        _zero_field_time_mask = np.logical_or(
+                _t < self.start_time, _t > self.end_time)
+        if _zero_field_time_mask.ndim > 0: _E_t[_zero_field_time_mask] = 0.0
+        else: _E_t *= not _zero_field_time_mask
         
         return _E_t
+
 
 class Superposed_Vecpot(Vecpot):
     def __init__(self, vecpots):
