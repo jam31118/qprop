@@ -7,6 +7,7 @@ from sys import stderr
 
 import numpy as np
 
+from ..default import type2castFunction
 
 class Parameter(object):
     file_extension = ".param"
@@ -43,6 +44,28 @@ class ParameterFile(Parameter):
         except: raise Exception(
             "Error during converting given value (={}) to string.".format(value))
         return name, _value_str
+
+
+    def __getitem__(self, name):
+        """Get value of a parameter with given name
+        
+        Notes
+        -----
+        This routine utilizes the fact that the names of parameters per
+        a parameter file is unique.
+        """
+        if name not in self._array['name']:
+            raise ValueError(
+                ("The given name ('{}') doesn't seem to exist "
+                 "in the parameter file").format(name)
+            )
+        _indices, = np.where(self._array['name'] == name)
+        assert len(_indices) == 1
+        _index, = _indices
+        _name, _type, _value_str = self._array[_index]
+        assert name == _name
+        _value = type2castFunction[_type](_value_str)
+        return _value
 
 
     def add_param(self, name, value, type):
@@ -132,15 +155,16 @@ class ParameterFile(Parameter):
         
         
         
-class ParameterFileSet(list, Parameter):
+class ParameterFileSet(dict, Parameter):
     
     def __init__(self, param_files):
-        super().__init__(param_files)
+        for _file in param_files: assert isinstance(_file, ParameterFile)
         self.file_names = [param_file.name for param_file in param_files]
         self.file_paths = [param_file.path for param_file in param_files]
         if len(set(self.file_names)) != len(self.file_names):
             raise Exception("There may be one or more duplicate file name "
                             "in given list: {}".format(self.file_names))
+        super().__init__(zip(self.file_names, param_files))
         
     @classmethod
     def from_calc_dir(cls, calc_dir_path):
@@ -158,13 +182,15 @@ class ParameterFileSet(list, Parameter):
         try: _param_files = [ParameterFile(path) for path in file_paths]
         except: raise RuntimeError("Failed to construct parameter file objects")
         return cls(_param_files)
+
         
     def update_param(self, file_name, param_name, new_value):
-        if basename(file_name) not in self.file_names + self.file_paths:
-            raise ValueError("The given file name '{}' "
-                             "does not exist in this parameter file set".format(file_name))
-        _index = self.file_names.index(file_name)
-        _param_file = self[_index]
+#        if basename(file_name) not in self.file_names + self.file_paths:
+#            raise ValueError("The given file name '{}' "
+#                             "does not exist in this parameter file set".format(file_name))
+#        _index = self.file_names.index(file_name)
+#        _param_file = self[_index]
+        _param_file = self[file_name]
         try:
             _param_file.update_param(param_name, new_value)
         except: raise Exception(
@@ -176,4 +202,17 @@ class ParameterFileSet(list, Parameter):
             try:_file.write_under_dir(dir_path)
             except: raise Exception(
                 "Failed to write file '{}' to directory '{}'".format(_file.name, dir_path))
+
+
+#    def __getitem__(self, file_name):
+#        _indices = [_i for _i, _name in enumerate(self) if _name == file_name]
+#        _num_of_matched_indices = len(_indices)
+#        if _num_of_matched_indices == 0: 
+#            raise KeyError("No item matched for {}".format(file_name))
+#        elif _num_of_matched_indices > 1:
+#            _msg = "Multiple matches for given `file_name`:{}"
+#            raise Exception(_msg.format(file_name))
+#        _index, = _indices
+#        return self[_index]
+
 
