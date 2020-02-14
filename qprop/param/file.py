@@ -185,11 +185,6 @@ class ParameterFileSet(dict, Parameter):
 
         
     def update_param(self, file_name, param_name, new_value):
-#        if basename(file_name) not in self.file_names + self.file_paths:
-#            raise ValueError("The given file name '{}' "
-#                             "does not exist in this parameter file set".format(file_name))
-#        _index = self.file_names.index(file_name)
-#        _param_file = self[_index]
         _param_file = self[file_name]
         try:
             _param_file.update_param(param_name, new_value)
@@ -198,21 +193,9 @@ class ParameterFileSet(dict, Parameter):
             
     def write_under_dir(self, dir_path):
         """Write all parameter files under given 'dir_path'"""
-        for _file in self:
+        for _file in self.values():
             try:_file.write_under_dir(dir_path)
-            except: raise Exception(
-                "Failed to write file '{}' to directory '{}'".format(_file.name, dir_path))
-
-
-#    def __getitem__(self, file_name):
-#        _indices = [_i for _i, _name in enumerate(self) if _name == file_name]
-#        _num_of_matched_indices = len(_indices)
-#        if _num_of_matched_indices == 0: 
-#            raise KeyError("No item matched for {}".format(file_name))
-#        elif _num_of_matched_indices > 1:
-#            _msg = "Multiple matches for given `file_name`:{}"
-#            raise Exception(_msg.format(file_name))
-#        _index, = _indices
-#        return self[_index]
-
+            except:
+                _msg = "Failed to write file '{}' to directory '{}'"
+                raise Exception(_msg.format(_file.name, dir_path))
 
