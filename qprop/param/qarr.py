@@ -43,4 +43,4 @@ def construct_qprop_obj_arr(parent_dir, sort_key=None, reverse=False):
         _q_pool.sort(key=_get_param, reverse=reverse)
     else: raise Exception("Unknown type of `sort_key`: {}".form(type(sort_key)))
     
-    return _q_pool
+    return np.array(_q_pool, copy=False, dtype=object)
