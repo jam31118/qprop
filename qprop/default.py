@@ -25,6 +25,7 @@ def check_param_default_config_consistency():
 type2castFunction = {
     'double' : lambda x: float(x),
     'long' : lambda x: int(x),
+    'int' : lambda x: int(x),
     'bool' : lambda x: bool(x),
     'string' : lambda x: str(x),
 }
